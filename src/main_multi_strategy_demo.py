@@ -8,9 +8,14 @@ import logging
 import signal
 import sys
 import random
+import os
 from pathlib import Path
 from colorlog import ColoredFormatter
 from datetime import datetime
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,6 +24,7 @@ from src.core.event_bus import EventBus
 from src.core.position import PositionManager
 from src.core.risk_manager import RiskManager
 from src.core.strategy_manager import StrategyManager
+from src.core.websocket_log_handler import setup_websocket_logging
 from src.ui.web_multi_strategy import WebServer
 
 
@@ -43,7 +49,10 @@ def setup_logging(log_level: str = "INFO"):
     root_logger.setLevel(getattr(logging, log_level.upper()))
     root_logger.addHandler(handler)
 
-    return logging.getLogger(__name__)
+    # 设置 WebSocket 日志
+    ws_log_handler = setup_websocket_logging(log_level)
+
+    return logging.getLogger(__name__), ws_log_handler
 
 
 class MockExchange:
@@ -155,20 +164,21 @@ class MockExchange:
 class HummingbotLiteMultiStrategy:
     """Hummingbot Lite 多策略主类"""
 
-    def __init__(self, demo_mode=True):
+    def __init__(self, demo_mode=True, ws_log_handler=None):
         self.logger = logging.getLogger(__name__)
         self.demo_mode = demo_mode
+        self.ws_log_handler = ws_log_handler
         self.is_running = False
 
         # 初始化核心组件
         self.event_bus = EventBus()
         self.position_manager = PositionManager()
         self.risk_manager = RiskManager({
-            'max_position_size': 0.1,
-            'max_order_size': 0.01,
+            'max_position_size': float(os.getenv('MAX_POSITION_SIZE', 0.1)),
+            'max_order_size': float(os.getenv('DEFAULT_ORDER_AMOUNT', 0.01)),
             'stop_loss_percentage': 0.02,
             'take_profit_percentage': 0.03,
-            'max_daily_loss': 0.05
+            'max_daily_loss': float(os.getenv('MAX_DAILY_LOSS', 1000))
         })
 
         # 创建策略管理器
@@ -221,7 +231,7 @@ class HummingbotLiteMultiStrategy:
             'host': '0.0.0.0',
             'port': 5000,
             'log_level': 'INFO'
-        }, self)
+        }, self, self.ws_log_handler)
 
         self.logger.info("=" * 60)
         self.logger.info("初始化完成！")
@@ -328,7 +338,7 @@ class HummingbotLiteMultiStrategy:
 def main():
     """主函数"""
     # 设置日志
-    logger = setup_logging(log_level="INFO")
+    logger, ws_log_handler = setup_logging(log_level="INFO")
 
     logger.info("""
     ╔═══════════════════════════════════════════════════════╗
@@ -342,7 +352,7 @@ def main():
     """)
 
     # 创建并运行机器人
-    bot = HummingbotLiteMultiStrategy(demo_mode=True)
+    bot = HummingbotLiteMultiStrategy(demo_mode=True, ws_log_handler=ws_log_handler)
 
     try:
         asyncio.run(bot.run())

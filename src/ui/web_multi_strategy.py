@@ -17,11 +17,12 @@ logger = logging.getLogger(__name__)
 class WebServer:
     """Web 服务器"""
 
-    def __init__(self, config: Dict, bot_instance):
+    def __init__(self, config: Dict, bot_instance, ws_log_handler=None):
         self.config = config
         self.bot = bot_instance
         self.app = FastAPI(title="Hummingbot Lite")
         self.websocket_clients = []
+        self.ws_log_handler = ws_log_handler
 
         # 添加全局异常处理
         @self.app.exception_handler(Exception)
@@ -268,12 +269,47 @@ class WebServer:
                 return {"status": "updated", "instance_id": instance_id}
             return {"error": "Failed to update strategy config"}
 
+        # ============ Kill Switch 端点 ============
+        @self.app.post("/api/kill-switch")
+        async def kill_switch():
+            """紧急停止所有策略并撤销所有订单"""
+            logger.warning("Kill Switch triggered!")
+            if not self.strategy_manager:
+                return {"error": "Strategy manager not available"}
+
+            try:
+                # 1. 停止所有运行中的策略
+                instances = self.strategy_manager.get_instances_summary()
+                stopped_count = 0
+                cancelled_count = 0
+
+                for instance in instances:
+                    if instance.get('is_running'):
+                        await self.strategy_manager.stop_strategy(instance['instance_id'])
+                        stopped_count += 1
+
+                # 2. 撤销所有订单
+                if self.bot and hasattr(self.bot, 'exchange'):
+                    cancelled_count = await self.bot.exchange.cancel_all_orders()
+
+                logger.error(f"Kill Switch executed: stopped {stopped_count} strategies, cancelled {cancelled_count} orders")
+
+                return {
+                    "status": "kill_switch_activated",
+                    "stopped_strategies": stopped_count,
+                    "cancelled_orders": cancelled_count,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Kill Switch failed: {e}")
+                return {"error": f"Kill Switch failed: {str(e)}"}
+
     def _setup_websocket(self):
         """设置 WebSocket"""
 
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
-            """WebSocket 端点"""
+            """通用 WebSocket 端点 - 用于事件广播"""
             await websocket.accept()
             self.websocket_clients.append(websocket)
 
@@ -286,6 +322,32 @@ class WebServer:
             except WebSocketDisconnect:
                 self.websocket_clients.remove(websocket)
                 logger.info("WebSocket client disconnected")
+
+        @self.app.websocket("/ws/logs")
+        async def logs_websocket_endpoint(websocket: WebSocket):
+            """日志 WebSocket 端点 - 用于实时日志推送"""
+            await websocket.accept()
+            
+            # 将客户端添加到日志处理器
+            if self.ws_log_handler:
+                self.ws_log_handler.add_client(websocket)
+            
+            try:
+                # 发送最近的日志给新连接的客户端
+                if self.ws_log_handler:
+                    recent_logs = self.ws_log_handler.get_recent_logs(100)
+                    for log_entry in recent_logs:
+                        await websocket.send_text(json.dumps(log_entry))
+                
+                # 保持连接并处理客户端消息
+                while True:
+                    data = await websocket.receive_text()
+                    # 可以处理客户端发送的消息（例如过滤日志级别）
+                    logger.info(f"Received logs WebSocket message: {data}")
+            except WebSocketDisconnect:
+                if self.ws_log_handler:
+                    self.ws_log_handler.remove_client(websocket)
+                logger.info("Logs WebSocket client disconnected")
 
     async def broadcast_event(self, event_type: str, data: dict):
         """广播事件到所有 WebSocket 客户端"""
