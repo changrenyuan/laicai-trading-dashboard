@@ -13,6 +13,9 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+# 导入 API 扩展
+from .api_extension import APIExtension
+
 
 class WebServer:
     """Web 服务器"""
@@ -41,6 +44,18 @@ class WebServer:
         # 设置路由
         self._setup_routes()
         self._setup_websocket()
+
+        # 初始化 API 扩展
+        self.api_extension = APIExtension(
+            self.app,
+            bot_instance,
+            self.strategy_manager,
+            ws_log_handler
+        )
+
+        # 添加示例数据用于测试
+        self.api_extension.add_sample_data()
+        logger.info("Web 服务器初始化完成，API 扩展已加载")
 
     def _setup_routes(self):
         """设置 API 路由"""
