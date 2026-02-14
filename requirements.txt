@@ -1,0 +1,29 @@
+# Web Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+websockets==12.0
+jinja2==3.1.3
+python-multipart==0.0.6
+
+# OKX API
+ccxt==4.2.0
+
+# Data Processing
+pandas==2.2.0
+numpy==1.26.3
+
+# Configuration
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Async
+aiohttp==3.9.1
+asyncio-mqtt==0.16.1
+
+# Utilities
+requests==2.31.0
+python-dateutil==2.8.2
+pytz==2024.1
+
+# Logging
+colorlog==6.8.0

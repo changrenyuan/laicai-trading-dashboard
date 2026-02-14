@@ -1,0 +1,51 @@
+# Hummingbot Lite Configuration File
+# 配置文件模板 - 复制为 config.yaml 并填写您的 OKX API 密钥
+
+# 交易所配置
+exchange:
+  name: "okx"
+  api_key: "YOUR_API_KEY_HERE"          # 替换为你的 OKX API Key
+  secret_key: "YOUR_SECRET_KEY_HERE"    # 替换为你的 OKX Secret Key
+  passphrase: "YOUR_PASSPHRASE_HERE"    # 替换为你的 OKX Passphrase
+  sandbox: false                        # 是否使用沙盒环境（测试网）
+
+# 策略配置
+strategy:
+  name: "market_maker"                  # 策略名称
+  trading_pair: "BTC-USDT"              # 交易对
+  order_amount: 0.001                   # 订单数量（BTC）
+  bid_spread: 0.001                     # 买单价差 (0.1%)
+  ask_spread: 0.001                     # 卖单价差 (0.1%)
+  order_refresh_time: 30                # 订单刷新时间（秒）
+
+# 风控配置
+risk_management:
+  max_position_size: 0.1                # 最大仓位（BTC）
+  max_order_size: 0.01                  # 单笔最大订单（BTC）
+  stop_loss_percentage: 0.02            # 止损百分比 (2%)
+  take_profit_percentage: 0.03          # 止盈百分比 (3%)
+  max_daily_loss: 0.05                  # 每日最大亏损 (5%)
+  enable_stop_loss: true                # 启用止损
+  enable_take_profit: true              # 启用止盈
+
+# 仓位管理配置
+position_management:
+  auto_rebalance: true                  # 自动平衡仓位
+  min_order_size: 0.001                 # 最小订单量（BTC）
+  inventory_target_base_pct: 0.5        # 目标基础资产占比 (50%)
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 5000
+  log_level: "INFO"
+
+# WebSocket 配置
+websocket:
+  enabled: true
+  path: "/ws"
+
+# 数据配置
+data:
+  enable_candlestick: true
+  candlestick_interval: "1m"            # K线间隔 (1m, 5m, 15m, 1h, 4h, 1d)
