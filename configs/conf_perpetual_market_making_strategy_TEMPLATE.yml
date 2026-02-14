@@ -1,0 +1,83 @@
+########################################################
+###  永续合约做市策略配置模板 (Perpetual Market Making)  ###
+########################################################
+
+# 策略名称
+strategy: perpetual_market_making
+
+# 交易对（永续合约）
+trading_pair: BTC-USDT-SWAP
+
+# 杠杆倍数
+leverage: 10
+
+# 仓位模式 (one_way 或 hedge)
+position_mode: one_way
+
+# 订单配置
+# 买单价差（从中间价百分比，1 = 1%）
+bid_spread: 0.1
+
+# 卖单价差（从中间价百分比，1 = 1%）
+ask_spread: 0.1
+
+# 最小价差（低于此值不挂单）
+minimum_spread: 0.05
+
+# 订单数量
+order_amount: 0.001
+
+# 订单刷新时间（秒）
+order_refresh_time: 30
+
+# 订单刷新容忍度（百分比，负值禁用）
+order_refresh_tolerance_pct: -1
+
+# 成交后延迟时间（秒）
+filled_order_delay: 60
+
+# 止盈配置
+# 多头止盈价差
+long_profit_taking_spread: 2.0
+
+# 空头止盈价差
+short_profit_taking_spread: 2.0
+
+# 止损价差
+stop_loss_spread: 5.0
+
+# 止损订单间隔时间（秒）
+time_between_stop_loss_orders: 60
+
+# 止损滑点缓冲
+stop_loss_slippage_buffer: 0.1
+
+# 多级订单配置
+# 订单层级数量
+order_levels: 1
+
+# 层级价差
+order_level_spread: 0.05
+
+# 层级数量增量
+order_level_amount: 0.0001
+
+# 价格区间
+# 价格上限（负值禁用）
+price_ceiling: -1
+
+# 价格下限（负值禁用）
+price_floor: -1
+
+# 订单优化
+# 启用订单优化
+order_optimization_enabled: false
+
+# 卖单优化深度
+ask_order_optimization_depth: 1
+
+# 买单优化深度
+bid_order_optimization_depth: 1
+
+# 价格类型 (mid_price, last_price, best_bid, best_ask)
+price_type: mid_price

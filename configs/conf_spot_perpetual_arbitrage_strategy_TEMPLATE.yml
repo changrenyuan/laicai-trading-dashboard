@@ -1,0 +1,39 @@
+########################################################
+###  现货永续套利策略配置模板 (Spot-Perpetual Arbitrage)  ###
+########################################################
+
+# 策略名称
+strategy: spot_perpetual_arbitrage
+
+# 现货市场配置
+spot_market: okx
+spot_trading_pair: BTC-USDT
+
+# 永续市场配置
+perp_market: okx
+perp_trading_pair: BTC-USDT-SWAP
+
+# 订单配置
+# 订单数量
+order_amount: 0.001
+
+# 永续杠杆倍数
+perp_leverage: 10
+
+# 套利阈值
+# 最小开仓套利百分比（例如 0.001 表示 0.1%）
+min_opening_arbitrage_pct: 0.001
+
+# 最小平仓套利百分比
+min_closing_arbitrage_pct: 0.0005
+
+# 滑点缓冲
+# 现货市场滑点缓冲（百分比）
+spot_market_slippage_buffer: 0.001
+
+# 永续市场滑点缓冲（百分比）
+perp_market_slippage_buffer: 0.001
+
+# 冷却时间
+# 下一次套利开仓延迟时间（秒）
+next_arbitrage_opening_delay: 120

@@ -1,0 +1,101 @@
+########################################################
+###  纯做市策略配置模板 (Pure Market Making)  ###
+########################################################
+
+# 策略名称
+strategy: pure_market_making
+
+# 交易对（现货）
+trading_pair: BTC-USDT
+
+# 订单配置
+# 买单价差（从中间价百分比，1 = 1%）
+bid_spread: 0.1
+
+# 卖单价差（从中间价百分比，1 = 1%）
+ask_spread: 0.1
+
+# 最小价差（低于此值不挂单）
+minimum_spread: 0.05
+
+# 订单数量
+order_amount: 0.001
+
+# 订单刷新时间（秒）
+order_refresh_time: 30
+
+# 最大订单年龄（秒）
+max_order_age: 1800
+
+# 订单刷新容忍度（百分比，负值禁用）
+order_refresh_tolerance_pct: -1
+
+# 成交后延迟时间（秒）
+filled_order_delay: 60
+
+# 价格区间
+# 价格上限（负值禁用）
+price_ceiling: -1
+
+# 价格下限（负值禁用）
+price_floor: -1
+
+# 动态价格带配置
+# 启用动态价格带
+moving_price_band_enabled: false
+
+# 价格上限百分比（从当前价）
+price_ceiling_pct: 10
+
+# 价格下限百分比（从当前价）
+price_floor_pct: 10
+
+# 价格带刷新时间（秒）
+price_band_refresh_time: 300
+
+# Ping-Pong 模式
+# 启用 Ping-Pong 模式（交替买卖）
+ping_pong_enabled: false
+
+# 库存偏差管理
+# 启用库存偏差
+inventory_skew_enabled: false
+
+# 目标基础资产百分比
+inventory_target_base_pct: 0.5
+
+# 库存范围乘数
+inventory_range_multiplier: 0.1
+
+# 库存价格（用于计算库存百分比）
+inventory_price: 50000
+
+# 多级订单配置
+# 订单层级数量
+order_levels: 1
+
+# 层级价差
+order_level_spread: 0.05
+
+# 层级数量增量
+order_level_amount: 0.0001
+
+# 挂单模式 (Hanging Orders)
+# 启用挂单模式
+hanging_orders_enabled: false
+
+# 挂单取消百分比
+hanging_orders_cancel_pct: 0.1
+
+# 订单优化
+# 启用订单优化
+order_optimization_enabled: false
+
+# 卖单优化深度
+ask_order_optimization_depth: 1
+
+# 买单优化深度
+bid_order_optimization_depth: 1
+
+# 价格类型 (mid_price, last_price, best_bid, best_ask)
+price_type: mid_price
