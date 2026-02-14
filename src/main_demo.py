@@ -1,6 +1,20 @@
 """
 Hummingbot Lite - 量化交易机器人主程序（演示模式）
 基于 Hummingbot 架构的简化版本
+
+代理配置：
+1. Clash 代理：config 中添加 "proxy": "clash" (HTTP) 或 "proxy": "clash-socks5"
+2. HTTP 代理：config 中添加 "proxy": "http://127.0.0.1:7890"
+3. SOCKS5 代理：config 中添加 "proxy": "socks5://127.0.0.1:7891" (需安装 aiohttp-socks)
+4. 端口号：config 中添加 "proxy": "7890" (自动使用 HTTP 协议)
+
+示例配置：
+{
+    "api_key": "xxx",
+    "secret_key": "xxx",
+    "passphrase": "xxx",
+    "proxy": "clash"  # 或其他代理配置
+}
 """
 import asyncio
 import yaml

@@ -53,7 +53,45 @@ cd /workspace/projects
 pip install -r requirements.txt
 ```
 
-### 3. 配置 OKX API
+### 3. 配置代理（如需要）
+
+⚠️ **注意**: OKX 交易所在中国大陆需要通过代理访问。
+
+#### 支持的代理配置方式
+
+**方式 1: Clash 代理（推荐）**
+```yaml
+exchange:
+  proxy: "clash"  # 或 "clash-socks5" (需安装 aiohttp-socks)
+```
+
+**方式 2: HTTP 代理**
+```yaml
+exchange:
+  proxy: "http://127.0.0.1:7890"
+```
+
+**方式 3: SOCKS5 代理**
+```yaml
+exchange:
+  proxy: "socks5://127.0.0.1:7891"
+```
+
+**方式 4: 端口号**
+```yaml
+exchange:
+  proxy: "7890"  # 自动使用 HTTP 协议
+```
+
+#### 测试代理连接
+
+```bash
+python test_proxy.py
+```
+
+详细配置请参考 [PROXY_CONFIG.md](PROXY_CONFIG.md)。
+
+### 4. 配置 OKX API
 
 编辑 `config.yaml` 文件，填写您的 OKX API 信息：
 
@@ -74,7 +112,7 @@ exchange:
 4. 选择权限：交易、读取
 5. **重要**：启用 IP 白名单（推荐）
 
-### 4. 配置策略参数
+### 5. 配置策略参数
 
 在 `config.yaml` 中调整策略参数：
 
@@ -88,7 +126,7 @@ strategy:
   order_refresh_time: 30           # 订单刷新时间（秒）
 ```
 
-### 5. 配置风控参数
+### 6. 配置风控参数
 
 ```yaml
 risk_management:
@@ -99,13 +137,13 @@ risk_management:
   max_daily_loss: 0.05             # 每日最大亏损 (5%)
 ```
 
-### 6. 启动程序
+### 7. 启动程序
 
 ```bash
 python src/main.py
 ```
 
-### 7. 访问 Web 控制面板
+### 8. 访问 Web 控制面板
 
 打开浏览器访问：http://localhost:5000
 
@@ -118,6 +156,20 @@ python src/main.py
 - 📋 实时事件日志
 
 ## 💡 使用指南
+
+### 演示模式（无需 API 密钥）
+
+如果只是想预览界面和体验功能，可以使用演示模式：
+
+```bash
+python src/main_demo.py
+```
+
+演示模式特点：
+- ✅ 无需 API 密钥
+- ✅ 使用模拟交易所
+- ✅ 模拟价格波动和订单成交
+- ✅ 完整的 UI 功能展示
 
 ### 启动策略
 
