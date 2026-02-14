@@ -319,3 +319,22 @@ triggered, order = risk_manager.check_stop_loss(symbol, side, current_price)
 ---
 
 **免责声明**：本软件仅供学习交流使用。使用本软件进行实盘交易所造成的任何损失，开发者不承担任何责任。请在充分了解风险的前提下谨慎使用。
+
+## 🪟 Windows 用户
+
+### 最简单的启动方式（三步走）
+
+1. **安装**：双击 `install.bat`（自动安装环境和依赖）
+2. **配置**：编辑 `.env` 文件（填入 OKX API 密钥）
+3. **启动**：双击 `start.bat`（自动打开浏览器访问 http://localhost:5000）
+
+### 可用脚本
+
+- `install.bat` - 一键安装
+- `start.bat` - 启动程序
+- `stop.bat` - 停止程序
+- `check_status.bat` - 检查状态
+- `fix.bat` - 一键修复常见问题
+- `service_manager.bat` - Windows 服务管理
+
+详细说明请查看：[README_WINDOWS.md](README_WINDOWS.md) | [WINDOWS_INSTALL.md](WINDOWS_INSTALL.md)
