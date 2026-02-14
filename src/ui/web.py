@@ -541,8 +541,16 @@ class WebServer:
 </html>
         """
 
+    async def run_async(self, host: str = "0.0.0.0", port: int = 5000):
+        """运行服务器（异步版本）"""
+        import uvicorn
+        logger.info(f"Starting web server on {host}:{port}")
+        config = uvicorn.Config(self.app, host=host, port=port, log_level="error")
+        server = uvicorn.Server(config)
+        await server.serve()
+
     def run(self, host: str = "0.0.0.0", port: int = 5000):
-        """运行服务器"""
+        """运行服务器（同步版本）"""
         import uvicorn
         logger.info(f"Starting web server on {host}:{port}")
         uvicorn.run(self.app, host=host, port=port)
