@@ -1,0 +1,46 @@
+##########################################
+###   AMM Arbitrage strategy config   ###
+##########################################
+
+# 策略名称
+strategy: amm_arbitrage
+
+# 市场配置
+market_1: okx
+trading_pair_1: BTC-USDT
+market_2: uniswap
+trading_pair_2: BTC-ETH
+
+# 订单配置
+order_amount: 0.001
+
+# 最小利润百分比（例如 0.001 表示 0.1%）
+min_profitability: 0.001
+
+# 滑点缓冲
+# 市场1滑点缓冲（百分比）
+market_1_slippage_buffer: 0.001
+
+# 市场2滑点缓冲（百分比）
+market_2_slippage_buffer: 0.001
+
+# 并发提交订单（true/false）
+# 如果为 true，同时提交买卖订单
+# 如果为 false，等待第一个订单成交后再提交第二个
+concurrent_orders_submission: true
+
+# 汇率配置
+# 启用汇率预言机（true/false）
+# 如果为 true，使用预言机获取实时汇率
+# 如果为 false，使用固定汇率
+rate_oracle_enabled: true
+
+# 固定汇率（仅当 rate_oracle_enabled 为 false 时使用）
+quote_conversion_rate: 1.0
+
+# Gas 费用配置（用于区块链交易）
+gas_token: ETH
+gas_price: 2000
+
+# 套利冷却时间（秒）
+arbitrage_cooldown: 60

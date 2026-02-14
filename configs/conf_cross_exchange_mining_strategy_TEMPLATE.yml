@@ -1,0 +1,35 @@
+########################################################
+###  Cross-Exchange Mining strategy config  ###
+########################################################
+
+# 策略名称
+strategy: cross_exchange_mining
+
+# 基础资产配置
+base_asset: BTC
+quote_asset: USDT
+
+# 订单配置
+# 总订单金额
+total_order_amount: 0.002
+
+# 价差（百分比）
+spread: 0.001
+
+# 订单刷新时间（秒）
+order_refresh_time: 30
+
+# 最大订单年龄（秒）
+max_order_age: 1800
+
+# 交易所配置
+exchanges:
+  - name: binance
+    trading_pair: BTC-USDT
+    weight: 0.5
+    maker_fee: 0.001
+
+  - name: okx
+    trading_pair: BTC-USDT
+    weight: 0.5
+    maker_fee: 0.001

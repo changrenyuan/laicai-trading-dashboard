@@ -1,0 +1,54 @@
+########################################################
+###  Cross-Exchange Market Making strategy config  ###
+########################################################
+
+# 策略名称
+strategy: cross_exchange_market_making
+
+# 交易所配置
+# Maker 交易所（费用低，挂单）
+maker_market: binance
+maker_trading_pair: BTC-USDT
+
+# Taker 交易所（费用高，对冲）
+taker_market: okx
+taker_trading_pair: BTC-USDT
+
+# 交易对
+trading_pair: BTC-USDT
+
+# 订单配置
+order_amount: 0.001
+
+# 最小利润百分比
+min_profitability: 0.001
+
+# 价差配置
+# 买单价差（百分比）
+bid_spread: 0.001
+
+# 卖单价差（百分比）
+ask_spread: 0.001
+
+# 订单刷新时间（秒）
+order_refresh_time: 30
+
+# 订单刷新容忍度（百分比，负值禁用）
+order_refresh_tolerance_pct: -1
+
+# 对冲配置
+# 启用自动对冲（true/false）
+auto_hedge_enabled: true
+
+# 对冲比例（0-1）
+hedge_ratio: 1.0
+
+# 对冲延迟（秒）
+hedge_delay: 1
+
+# 费用配置
+# Maker 费用（百分比）
+maker_fee: 0.001
+
+# Taker 费用（百分比）
+taker_fee: 0.001

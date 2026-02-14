@@ -27,6 +27,9 @@ class StrategyBase(ABC):
         self.is_running = False
         self.is_active = False
 
+        # 初始化 logger
+        self.logger = logging.getLogger(self.__class__.__name__)
+
         # 回调函数（由交易所提供）
         self.create_order_callback: Optional[Callable] = None
         self.cancel_order_callback: Optional[Callable] = None
@@ -55,12 +58,12 @@ class StrategyBase(ABC):
     async def start(self):
         """启动策略"""
         if self.is_running:
-            logger.warning("Strategy is already running")
+            self.logger.warning("Strategy is already running")
             return
 
         self.is_running = True
         self.is_active = True
-        logger.info(f"Strategy {self.__class__.__name__} started")
+        self.logger.info(f"Strategy {self.__class__.__name__} started")
 
         await self.event_bus.publish("strategy_start", {
             "strategy": self.__class__.__name__,
@@ -77,7 +80,7 @@ class StrategyBase(ABC):
 
         self.is_running = False
         self.is_active = False
-        logger.info(f"Strategy {self.__class__.__name__} stopped")
+        self.logger.info(f"Strategy {self.__class__.__name__} stopped")
 
         # 取消所有活动订单
         await self._cancel_all_orders()
@@ -107,7 +110,7 @@ class StrategyBase(ABC):
         order_id = data.get("order_id")
         if order_id in self.active_orders:
             order_info = self.active_orders[order_id]
-            logger.info(f"Order filled: {order_id} {order_info}")
+            self.logger.info(f"Order filled: {order_id} {order_info}")
 
             # 更新仓位
             side = order_info.get("side")
@@ -151,13 +154,13 @@ class StrategyBase(ABC):
                            price: float, order_type: str = "limit") -> Optional[str]:
         """创建订单"""
         if not self.create_order_callback:
-            logger.error("create_order_callback not set")
+            self.logger.error("create_order_callback not set")
             return None
 
         # 风控检查
         allowed, msg = self.risk_manager.check_order_size(size)
         if not allowed:
-            logger.warning(f"Order rejected by risk manager: {msg}")
+            self.logger.warning(f"Order rejected by risk manager: {msg}")
             return None
 
         # 检查仓位限制
@@ -167,7 +170,7 @@ class StrategyBase(ABC):
             symbol, current_size, size
         )
         if not allowed:
-            logger.warning(f"Position limit exceeded: {msg}")
+            self.logger.warning(f"Position limit exceeded: {msg}")
             return None
 
         try:
@@ -197,11 +200,11 @@ class StrategyBase(ABC):
                     "price": price
                 })
 
-                logger.info(f"Order created: {order_id} {symbol} {side} {size}@{price}")
+                self.logger.info(f"Order created: {order_id} {symbol} {side} {size}@{price}")
                 return order_id
 
         except Exception as e:
-            logger.error(f"Error creating order: {e}", exc_info=True)
+            self.logger.error(f"Error creating order: {e}", exc_info=True)
 
         return None
 
@@ -211,7 +214,7 @@ class StrategyBase(ABC):
             return False
 
         if order_id not in self.active_orders:
-            logger.warning(f"Order {order_id} not found in active orders")
+            self.logger.warning(f"Order {order_id} not found in active orders")
             return False
 
         try:
@@ -221,10 +224,10 @@ class StrategyBase(ABC):
                 await self.event_bus.publish("order_cancelled", {
                     "order_id": order_id
                 })
-                logger.info(f"Order cancelled: {order_id}")
+                self.logger.info(f"Order cancelled: {order_id}")
                 return True
         except Exception as e:
-            logger.error(f"Error cancelling order: {e}", exc_info=True)
+            self.logger.error(f"Error cancelling order: {e}", exc_info=True)
 
         return False
 

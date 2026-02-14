@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from typing import Dict, List, Optional
 import json
 import logging
+import sys
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,17 @@ class WebServer:
         self.bot = bot_instance
         self.app = FastAPI(title="Hummingbot Lite")
         self.websocket_clients = []
+
+        # 添加全局异常处理
+        @self.app.exception_handler(Exception)
+        async def global_exception_handler(request, exc):
+            print(f"Global exception caught: {exc}", file=sys.stderr)
+            print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
+            import traceback
+            return {
+                "error": str(exc),
+                "traceback": traceback.format_exc()
+            }
 
         # 获取策略管理器（如果有）
         self.strategy_manager = getattr(bot_instance, 'strategy_manager', None)
@@ -59,7 +71,14 @@ class WebServer:
                 balance = await self.bot.exchange.get_balance()
                 return {"balance": balance, "timestamp": datetime.utcnow().isoformat()}
             except Exception as e:
-                return {"error": str(e)}
+                import traceback
+                print(f"Exception caught: {e}", file=sys.stderr)
+                print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
+                error_details = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                return error_details
 
         @self.app.get("/api/orders")
         async def get_orders():
@@ -69,7 +88,14 @@ class WebServer:
                 orders = await self.bot.exchange.get_open_orders(symbol)
                 return {"orders": orders, "count": len(orders)}
             except Exception as e:
-                return {"error": str(e)}
+                import traceback
+                print(f"Exception caught: {e}", file=sys.stderr)
+                print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
+                error_details = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                return error_details
 
         @self.app.post("/api/start")
         async def start_strategy():
@@ -101,7 +127,14 @@ class WebServer:
                 cancelled = await self.bot.exchange.cancel_all_orders(symbol)
                 return {"cancelled": cancelled, "message": f"Cancelled {cancelled} orders"}
             except Exception as e:
-                return {"error": str(e)}
+                import traceback
+                print(f"Exception caught: {e}", file=sys.stderr)
+                print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
+                error_details = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                return error_details
 
         # ============ 多策略管理接口 ============
 
@@ -146,22 +179,30 @@ class WebServer:
         @self.app.post("/api/strategy-instances")
         async def create_strategy_instance(request: dict):
             """创建策略实例"""
+            print(f"create_strategy_instance called", file=sys.stderr)
+            logger.info(f"create_strategy_instance called: {request}")
             if not self.strategy_manager:
+                print(f"Strategy manager not available", file=sys.stderr)
                 return {"error": "Strategy manager not available"}
 
+            print(f"About to enter try block", file=sys.stderr)
             try:
+                print(f"In try block, getting strategy_name", file=sys.stderr)
                 strategy_name = request.get('strategy_name')
                 config = request.get('config', {})
                 instance_name = request.get('instance_name')
 
+                print(f"strategy_name: {strategy_name}", file=sys.stderr)
                 if not strategy_name:
                     return {"error": "strategy_name is required"}
 
+                print(f"About to call create_strategy_instance", file=sys.stderr)
                 instance = await self.strategy_manager.create_strategy_instance(
                     strategy_name=strategy_name,
                     config=config,
                     instance_name=instance_name
                 )
+                print(f"Strategy instance created successfully", file=sys.stderr)
 
                 return {
                     "instance_id": instance.instance_id,
@@ -170,7 +211,14 @@ class WebServer:
                 }
 
             except Exception as e:
-                return {"error": str(e)}
+                import traceback
+                print(f"Exception caught: {e}", file=sys.stderr)
+                print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
+                error_details = {
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                return error_details
 
         @self.app.post("/api/strategy-instances/{instance_id}/start")
         async def start_strategy_instance(instance_id: str):
@@ -424,6 +472,12 @@ class WebServer:
                     <option value="pure_market_making">Pure Market Making (现货做市)</option>
                     <option value="perpetual_market_making">Perpetual Market Making (永续做市)</option>
                     <option value="spot_perpetual_arbitrage">Spot-Perpetual Arbitrage (套利)</option>
+                    <option value="amm_arbitrage">AMM Arbitrage (AMM套利)</option>
+                    <option value="avellaneda_market_making">Avellaneda Market Making (Avellaneda做市)</option>
+                    <option value="cross_exchange_market_making">Cross-Exchange Market Making (跨所做市)</option>
+                    <option value="liquidity_mining">Liquidity Mining (流动性挖矿)</option>
+                    <option value="hedge">Hedge (对冲)</option>
+                    <option value="cross_exchange_mining">Cross-Exchange Mining (跨所挖矿)</option>
                 </select>
             </div>
             <div class="form-group">

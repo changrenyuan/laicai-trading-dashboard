@@ -1,0 +1,36 @@
+########################################################
+###  Hedge strategy config  ###
+########################################################
+
+# 策略名称
+strategy: hedge
+
+# 资产配置
+target_asset: BTC
+spot_market: okx
+perp_market: okx
+
+# 交易对
+spot_trading_pair: BTC-USDT
+perp_trading_pair: BTC-USDT-SWAP
+
+# 对冲配置
+# 对冲比例（0-1，1 表示 100% 对冲）
+hedge_ratio: 1.0
+
+# 对冲阈值（百分比）
+hedge_threshold: 0.01
+
+# 重新平衡阈值（百分比）
+rebalance_threshold: 0.05
+
+# 止损配置
+# 止损百分比
+stop_loss_pct: 0.1
+
+# 止盈百分比
+take_profit_pct: 0.2
+
+# 杠杆配置
+# 永续杠杆倍数
+perp_leverage: 1

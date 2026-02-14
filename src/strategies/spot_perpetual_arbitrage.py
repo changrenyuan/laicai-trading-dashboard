@@ -328,6 +328,20 @@ class SpotPerpetualArbitrageStrategy(StrategyBase):
 
         self.logger.info(f"套利策略状态: {status}")
 
+    async def _run_loop(self):
+        """策略主循环"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(1)
+            except Exception as e:
+                self.logger.error(f"现货永续套利策略主循环错误: {e}")
+
+    async def on_order_book(self, order_book: Dict):
+        """订单簿更新回调"""
+        # 现货永续套利策略主要使用ticker数据，订单簿回调暂不处理
+        # 可以在未来扩展为使用订单簿数据
+        pass
+
     def get_status(self) -> Dict:
         """获取策略状态"""
         return {

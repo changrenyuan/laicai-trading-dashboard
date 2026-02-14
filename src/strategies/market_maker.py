@@ -44,11 +44,11 @@ class MarketMakerStrategy(StrategyBase):
         self.total_fills = 0
         self.total_trades = 0
 
-        logger.info(f"MarketMakerStrategy initialized for {self.trading_pair}")
+        self.logger.info(f"MarketMakerStrategy initialized for {self.trading_pair}")
 
     async def _run_loop(self):
         """策略主循环"""
-        logger.info("MarketMakerStrategy main loop started")
+        self.logger.info("MarketMakerStrategy main loop started")
 
         while self.is_running:
             try:
@@ -58,7 +58,7 @@ class MarketMakerStrategy(StrategyBase):
                 await asyncio.sleep(1)
 
             except Exception as e:
-                logger.error(f"Error in strategy loop: {e}", exc_info=True)
+                self.logger.error(f"Error in strategy loop: {e}", exc_info=True)
                 await self.event_bus.publish("strategy_error", {
                     "strategy": "MarketMakerStrategy",
                     "error": str(e)
@@ -127,10 +127,10 @@ class MarketMakerStrategy(StrategyBase):
 
                 if self.bid_order_id or self.ask_order_id:
                     self.total_orders += 1
-                    logger.info(f"Orders refreshed: bid@{bid_price} ask@{ask_price}")
+                    self.logger.info(f"Orders refreshed: bid@{bid_price} ask@{ask_price}")
 
         except Exception as e:
-            logger.error(f"Error refreshing orders: {e}", exc_info=True)
+            self.logger.error(f"Error refreshing orders: {e}", exc_info=True)
 
     async def _check_risk_levels(self):
         """检查风控触发"""
@@ -147,7 +147,7 @@ class MarketMakerStrategy(StrategyBase):
             )
 
             if stop_triggered:
-                logger.warning(f"Stop loss triggered for {position.symbol}")
+                self.logger.warning(f"Stop loss triggered for {position.symbol}")
                 # 平仓
                 close_side = "sell" if position.side == PositionSide.LONG else "buy"
                 await self._create_order(
@@ -165,7 +165,7 @@ class MarketMakerStrategy(StrategyBase):
             )
 
             if tp_triggered:
-                logger.info(f"Take profit triggered for {position.symbol}")
+                self.logger.info(f"Take profit triggered for {position.symbol}")
                 # 平仓
                 close_side = "sell" if position.side == PositionSide.LONG else "buy"
                 await self._create_order(

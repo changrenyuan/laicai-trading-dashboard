@@ -265,6 +265,14 @@ class PerpetualMarketMakingStrategy(StrategyBase):
         except Exception as e:
             self.logger.error(f"平仓失败: {e}")
 
+    async def _run_loop(self):
+        """策略主循环"""
+        while self.is_running:
+            try:
+                await asyncio.sleep(1)
+            except Exception as e:
+                self.logger.error(f"永续合约做市策略主循环错误: {e}")
+
     def get_status(self) -> Dict:
         """获取策略状态"""
         return {

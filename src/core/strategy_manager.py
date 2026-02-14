@@ -16,6 +16,15 @@ from ..strategies.market_maker import MarketMakerStrategy
 from ..strategies.pure_market_making import PureMarketMakingStrategy
 from ..strategies.perpetual_market_making import PerpetualMarketMakingStrategy
 from ..strategies.spot_perpetual_arbitrage import SpotPerpetualArbitrageStrategy
+from ..strategies.amm_arbitrage import AMMArbitrageStrategy
+from ..strategies.avellaneda_market_making import AvellanedaMarketMakingStrategy
+from ..strategies.cross_exchange_market_making import CrossExchangeMarketMakingStrategy
+from ..strategies.liquidity_mining import LiquidityMiningStrategy
+from ..strategies.hedge import HedgeStrategy
+from ..strategies.cross_exchange_mining import CrossExchangeMiningStrategy
+
+# 初始化 logger
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -65,7 +74,13 @@ class StrategyManager:
             'market_maker': MarketMakerStrategy,
             'pure_market_making': PureMarketMakingStrategy,
             'perpetual_market_making': PerpetualMarketMakingStrategy,
-            'spot_perpetual_arbitrage': SpotPerpetualArbitrageStrategy
+            'spot_perpetual_arbitrage': SpotPerpetualArbitrageStrategy,
+            'amm_arbitrage': AMMArbitrageStrategy,
+            'avellaneda_market_making': AvellanedaMarketMakingStrategy,
+            'cross_exchange_market_making': CrossExchangeMarketMakingStrategy,
+            'liquidity_mining': LiquidityMiningStrategy,
+            'hedge': HedgeStrategy,
+            'cross_exchange_mining': CrossExchangeMiningStrategy
         }
 
         self.logger.info("策略管理器初始化完成")
@@ -92,7 +107,13 @@ class StrategyManager:
             'market_maker': '经典做市策略，在买卖价差之间挂单',
             'pure_market_making': '纯现货做市，支持库存偏差、Ping-Pong 模式',
             'perpetual_market_making': '永续合约做市，支持止盈止损、杠杆交易',
-            'spot_perpetual_arbitrage': '现货永续套利，对冲价差获利'
+            'spot_perpetual_arbitrage': '现货永续套利，对冲价差获利',
+            'amm_arbitrage': 'AMM 套利，在 CEX 和 DEX 之间套利',
+            'avellaneda_market_making': 'Avellaneda 做市，基于数学模型优化价差',
+            'cross_exchange_market_making': '跨交易所做市，利用价差获利',
+            'liquidity_mining': '流动性挖矿，多市场提供流动性赚取奖励',
+            'hedge': '对冲策略，保护资产免受价格波动',
+            'cross_exchange_mining': '跨交易所挖矿，多交易所同时提供流动性'
         }
         return descriptions.get(strategy_name, '未知策略')
 
