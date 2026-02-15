@@ -40,5 +40,6 @@ OKX_PLACE_ORDER_PATH = "/api/v5/trade/order"
 OKX_ORDER_DETAILS_PATH = '/api/v5/trade/order'
 OKX_ORDER_CANCEL_PATH = '/api/v5/trade/cancel-order'
 OKX_BALANCE_PATH = '/api/v5/account/balance'
+OKX_ASSET_BALANCE_PATH = '/api/v5/asset/balances'  # 资金账户余额（现金账户）
 
 NO_LIMIT = sys.maxsize

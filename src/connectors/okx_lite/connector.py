@@ -18,7 +18,8 @@ from .okx_constants import (
     OKX_ORDER_BOOK_PATH,
     OKX_PLACE_ORDER_PATH,
     OKX_ORDER_CANCEL_PATH,
-    OKX_BALANCE_PATH
+    OKX_BALANCE_PATH,
+    OKX_ASSET_BALANCE_PATH
 )
 from .okx_auth import OkxAuth, TimeSynchronizer
 from .proxy_manager import ProxyManager
@@ -163,10 +164,54 @@ class OKXConnector:
                             'available': Decimal(str(item['availBal'])),
                             'frozen': Decimal(str(item['frozenBal']))
                         }
+                    print(f"✅ 获取余额成功: {len(balance)} 种货币")
                     return balance
-                return {}
+                else:
+                    # 打印详细的错误信息
+                    print(f"❌ OKX API 返回错误:")
+                    print(f"   错误代码: {data.get('code')}")
+                    print(f"   错误信息: {data.get('msg')}")
+                    print(f"   完整响应: {data}")
+                    return {}
         except Exception as e:
-            print(f"获取余额失败: {e}")
+            print(f"❌ 获取余额失败: {e}")
+            import traceback
+            print(traceback.format_exc())
+            return {}
+
+    async def get_asset_balance(self) -> Dict:
+        """
+        获取资金账户余额（现金账户）
+        OKX V5 API: /api/v5/asset/balances
+        """
+        try:
+            url = f"{self._base_url}{OKX_ASSET_BALANCE_PATH}"
+            headers = self._auth.authentication_headers("GET", url)
+            kwargs = self._get_request_kwargs()
+
+            async with self._http_client.get(url, headers=headers, **kwargs) as response:
+                data = await response.json()
+                if data.get('code') == '0':
+                    balance = {}
+                    for item in data.get('data', []):
+                        balance[item['ccy']] = {
+                            'total': Decimal(str(item['bal'])),
+                            'available': Decimal(str(item['availBal'])),
+                            'frozen': Decimal(str(item['frozenBal']))
+                        }
+                    print(f"✅ 获取资金账户余额成功: {len(balance)} 种货币")
+                    return balance
+                else:
+                    # 打印详细的错误信息
+                    print(f"❌ OKX API 返回错误（资金账户）:")
+                    print(f"   错误代码: {data.get('code')}")
+                    print(f"   错误信息: {data.get('msg')}")
+                    print(f"   完整响应: {data}")
+                    return {}
+        except Exception as e:
+            print(f"❌ 获取资金账户余额失败: {e}")
+            import traceback
+            print(traceback.format_exc())
             return {}
 
     async def get_ticker(self, symbol: str) -> Optional[Dict]:

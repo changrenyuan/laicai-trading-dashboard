@@ -372,7 +372,7 @@ class APIExtension:
         @self.app.get("/api/klines")
         async def get_klines(
             symbol: str = Query(...),
-            interval: str = Query("1h", regex="^(1m|5m|15m|30m|1h|4h|1d|1w)$"),
+            interval: str = Query("1h", pattern="^(1m|5m|15m|30m|1h|4h|1d|1w)$"),
             limit: int = Query(100, ge=1, le=1000)
         ):
             """
@@ -595,11 +595,35 @@ class APIExtension:
     # ==================== 辅助方法 ====================
 
     async def _get_balance_data(self) -> Dict[str, Dict]:
-        """获取余额数据（从真实交易所）"""
+        """获取余额数据（从真实交易所）- 同时获取交易账户和资金账户"""
         try:
             if hasattr(self.bot, 'exchange'):
-                balance = await self.bot.exchange.get_balance()
-                return balance
+                exchange = self.bot.exchange
+
+                # 获取交易账户余额
+                trading_balance = await exchange.get_balance()
+
+                # 获取资金账户余额（现金账户）
+                asset_balance = await exchange.get_asset_balance()
+
+                # 合并两个账户的余额
+                combined_balance = {}
+                all_currencies = set(trading_balance.keys()) | set(asset_balance.keys())
+
+                for ccy in all_currencies:
+                    trading = trading_balance.get(ccy, {})
+                    asset = asset_balance.get(ccy, {})
+
+                    combined_balance[ccy] = {
+                        'total': (trading.get('total', 0) + asset.get('total', 0)),
+                        'available': (trading.get('available', 0) + asset.get('available', 0)),
+                        'frozen': (trading.get('frozen', 0) + asset.get('frozen', 0)),
+                        'trading': trading,  # 交易账户余额
+                        'asset': asset       # 资金账户余额
+                    }
+
+                print(f"✅ 获取双账户余额成功: {len(combined_balance)} 种货币")
+                return combined_balance
             else:
                 logger.error("Bot 没有配置交易所实例")
                 return {}
