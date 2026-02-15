@@ -152,7 +152,7 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_BALANCE_PATH}"
-            headers = self._auth.authentication_headers("GET", url)
+            headers = self._auth.authentication_headers("GET", OKX_BALANCE_PATH)
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.get(url, headers=headers, **kwargs) as response:
@@ -187,7 +187,7 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_ASSET_BALANCE_PATH}"
-            headers = self._auth.authentication_headers("GET", url)
+            headers = self._auth.authentication_headers("GET", OKX_ASSET_BALANCE_PATH)
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.get(url, headers=headers, **kwargs) as response:
@@ -281,7 +281,7 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_PLACE_ORDER_PATH}"
-            headers = self._auth.authentication_headers("POST", url)
+            headers = self._auth.authentication_headers("POST", OKX_PLACE_ORDER_PATH)
 
             data = {
                 "instId": symbol,
@@ -297,7 +297,7 @@ class OKXConnector:
             json_data = json.dumps(data)
             headers["Content-Type"] = "application/json"
             headers["OK-ACCESS-SIGN"] = self._auth._generate_signature(
-                headers["OK-ACCESS-TIMESTAMP"], "POST", url, json_data
+                headers["OK-ACCESS-TIMESTAMP"], "POST", OKX_PLACE_ORDER_PATH, json_data
             )
             kwargs = self._get_request_kwargs()
 
@@ -337,7 +337,7 @@ class OKXConnector:
             if not order:
                 return False
 
-            headers = self._auth.authentication_headers("POST", url)
+            headers = self._auth.authentication_headers("POST", OKX_ORDER_CANCEL_PATH)
 
             data = {
                 "instId": order['symbol'],
@@ -347,7 +347,7 @@ class OKXConnector:
             json_data = json.dumps(data)
             headers["Content-Type"] = "application/json"
             headers["OK-ACCESS-SIGN"] = self._auth._generate_signature(
-                headers["OK-ACCESS-TIMESTAMP"], "POST", url, json_data
+                headers["OK-ACCESS-TIMESTAMP"], "POST", OKX_ORDER_CANCEL_PATH, json_data
             )
             kwargs = self._get_request_kwargs()
 
