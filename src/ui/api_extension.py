@@ -24,7 +24,7 @@ class APIExtension:
         self.strategy_manager = strategy_manager
         self.ws_log_handler = ws_log_handler
 
-        # 模拟数据存储（在实际应用中应该从数据库获取）
+        # 数据存储（从真实交易所和数据库获取）
         self._trade_history = []
         self._pnl_history = []
         self._backtest_results = {}
@@ -595,19 +595,18 @@ class APIExtension:
     # ==================== 辅助方法 ====================
 
     async def _get_balance_data(self) -> Dict[str, Dict]:
-        """获取余额数据"""
+        """获取余额数据（从真实交易所）"""
         try:
             if hasattr(self.bot, 'exchange'):
                 balance = await self.bot.exchange.get_balance()
                 return balance
             else:
-                # 返回模拟数据
-                return {
-                    "USDT": {"total": 10000.0, "available": 9500.0, "frozen": 500.0},
-                    "BTC": {"total": 0.1, "available": 0.08, "frozen": 0.02}
-                }
+                logger.error("Bot 没有配置交易所实例")
+                return {}
         except Exception as e:
             logger.error(f"获取余额数据失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return {}
 
     async def _get_unrealized_pnl(self) -> float:
@@ -768,40 +767,4 @@ class APIExtension:
             "equity_curve": equity_curve
         }
 
-    # ==================== 模拟数据生成 ====================
-
-    def add_sample_data(self):
-        """添加示例数据用于测试"""
-        import random
-
-        # 添加一些成交记录
-        now = datetime.now().timestamp()
-        symbols = ["BTC-USDT", "ETH-USDT", "SOL-USDT"]
-
-        for i in range(20):
-            symbol = random.choice(symbols)
-            side = random.choice(["buy", "sell"])
-            price = 50000.0 if "BTC" in symbol else (3000.0 if "ETH" in symbol else 150.0)
-            price += random.uniform(-500, 500)
-
-            self._trade_history.append({
-                "trade_id": f"trade_{i}",
-                "symbol": symbol,
-                "side": side,
-                "price": round(price, 2),
-                "amount": round(random.uniform(0.001, 1.0), 4),
-                "fee": round(random.uniform(0.1, 5.0), 2),
-                "fee_currency": "USDT",
-                "timestamp": int(now - (20 - i) * 3600)
-            })
-
-        # 添加一些 PnL 历史
-        equity = 10000.0
-        for i in range(30):
-            equity += random.uniform(-100, 150)
-            self._pnl_history.append({
-                "timestamp": int(now - (30 - i) * 86400),
-                "equity": round(equity, 2),
-                "realized_pnl": round(equity - 10000.0, 2),
-                "unrealized_pnl": round(random.uniform(-200, 200), 2)
-            })
+    # ==================== 数据管理 ====================

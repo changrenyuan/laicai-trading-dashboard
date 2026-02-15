@@ -42,6 +42,7 @@ logs/
 
 # Config (contains API keys)
 config.yaml
+config.json
 
 # OS
 .DS_Store
