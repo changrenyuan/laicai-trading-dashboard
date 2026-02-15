@@ -152,7 +152,8 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_BALANCE_PATH}"
-            headers = self._auth.authentication_headers("GET", OKX_BALANCE_PATH)
+            # 传入完整 URL 而不是路径（Hummingbot 官方方式）
+            headers = self._auth.authentication_headers("GET", url)
 
             # 如果是模拟盘，添加模拟盘标记
             if self.sandbox:
@@ -168,23 +169,28 @@ class OKXConnector:
                     # 打印原始数据以便调试
                     print(f"📊 交易账户 API 响应: {data}")
 
-                    # 安全地获取数据
-                    data_list = data.get('data', [])
-                    if data_list and len(data_list) > 0:
-                        account_data = data_list[0]
-                        details = account_data.get('details', [])
+                    # Hummingbot 官方逻辑
+                    balances = data['data'][0]['details']
 
-                        print(f"📊 账户数据结构: {account_data}")
-                        print(f"📊 详情数量: {len(details)}")
+                    print(f"📊 详情数量: {len(balances)}")
 
-                        for item in details:
-                            ccy = item.get('ccy')
-                            if ccy:
-                                balance[ccy] = {
-                                    'total': Decimal(str(item.get('bal', 0))),
-                                    'available': Decimal(str(item.get('availBal', 0))),
-                                    'frozen': Decimal(str(item.get('frozenBal', 0)))
-                                }
+                    for balance_item in balances:
+                        ccy = balance_item["ccy"]
+                        equity_text = balance_item.get("eq")
+                        available_equity_text = balance_item.get("availEq")
+
+                        if equity_text and available_equity_text:
+                            total = Decimal(str(equity_text))
+                            available = Decimal(str(available_equity_text))
+                        else:
+                            available = Decimal(str(balance_item.get("availBal", 0)))
+                            total = available + Decimal(str(balance_item.get("frozenBal", 0)))
+
+                        balance[ccy] = {
+                            'total': total,
+                            'available': available,
+                            'frozen': total - available
+                        }
 
                     print(f"✅ 获取余额成功: {len(balance)} 种货币")
                     return balance
@@ -208,7 +214,8 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_ASSET_BALANCE_PATH}"
-            headers = self._auth.authentication_headers("GET", OKX_ASSET_BALANCE_PATH)
+            # 传入完整 URL 而不是路径（Hummingbot 官方方式）
+            headers = self._auth.authentication_headers("GET", url)
 
             # 如果是模拟盘，添加模拟盘标记
             if self.sandbox:
@@ -224,17 +231,26 @@ class OKXConnector:
                     # 打印原始数据以便调试
                     print(f"💰 资金账户 API 响应: {data}")
 
-                    # 安全地获取数据
+                    # Hummingbot 官方逻辑（与交易账户相同）
                     data_list = data.get('data', [])
 
                     for item in data_list:
-                        ccy = item.get('ccy')
-                        if ccy:
-                            balance[ccy] = {
-                                'total': Decimal(str(item.get('bal', 0))),
-                                'available': Decimal(str(item.get('availBal', 0))),
-                                'frozen': Decimal(str(item.get('frozenBal', 0)))
-                            }
+                        ccy = item["ccy"]
+                        equity_text = item.get("eq")
+                        available_equity_text = item.get("availEq")
+
+                        if equity_text and available_equity_text:
+                            total = Decimal(str(equity_text))
+                            available = Decimal(str(available_equity_text))
+                        else:
+                            available = Decimal(str(item.get("availBal", 0)))
+                            total = available + Decimal(str(item.get("frozenBal", 0)))
+
+                        balance[ccy] = {
+                            'total': total,
+                            'available': available,
+                            'frozen': total - available
+                        }
 
                     print(f"✅ 获取资金账户余额成功: {len(balance)} 种货币")
                     return balance
@@ -317,12 +333,7 @@ class OKXConnector:
         """
         try:
             url = f"{self._base_url}{OKX_PLACE_ORDER_PATH}"
-            headers = self._auth.authentication_headers("POST", OKX_PLACE_ORDER_PATH)
-
-            # 如果是模拟盘，添加模拟盘标记
-            if self.sandbox:
-                headers["x-simulated-trading"] = "1"
-
+            # 传入完整 URL 而不是路径（Hummingbot 官方方式）
             data = {
                 "instId": symbol,
                 "tdMode": "cash",
@@ -335,10 +346,13 @@ class OKXConnector:
                 data["px"] = str(price)
 
             json_data = json.dumps(data)
+            headers = self._auth.authentication_headers("POST", url, data=json_data)
             headers["Content-Type"] = "application/json"
-            headers["OK-ACCESS-SIGN"] = self._auth._generate_signature(
-                headers["OK-ACCESS-TIMESTAMP"], "POST", OKX_PLACE_ORDER_PATH, json_data
-            )
+
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
+
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.post(url, headers=headers, data=json_data, **kwargs) as response:
@@ -377,22 +391,20 @@ class OKXConnector:
             if not order:
                 return False
 
-            headers = self._auth.authentication_headers("POST", OKX_ORDER_CANCEL_PATH)
-
-            # 如果是模拟盘，添加模拟盘标记
-            if self.sandbox:
-                headers["x-simulated-trading"] = "1"
-
             data = {
                 "instId": order['symbol'],
                 "ordId": order_id,
             }
 
             json_data = json.dumps(data)
+            # 传入完整 URL 而不是路径
+            headers = self._auth.authentication_headers("POST", url, data=json_data)
             headers["Content-Type"] = "application/json"
-            headers["OK-ACCESS-SIGN"] = self._auth._generate_signature(
-                headers["OK-ACCESS-TIMESTAMP"], "POST", OKX_ORDER_CANCEL_PATH, json_data
-            )
+
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
+
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.post(url, headers=headers, data=json_data, **kwargs) as response:

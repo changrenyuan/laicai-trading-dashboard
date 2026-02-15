@@ -8,7 +8,6 @@ import hmac
 from collections import OrderedDict
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
-from datetime import timezone
 
 
 class TimeSynchronizer:
@@ -17,10 +16,10 @@ class TimeSynchronizer:
         self._time_offset = 0.0
 
     def time(self) -> float:
-        return datetime.datetime.now(timezone.utc).timestamp() + self._time_offset
+        return datetime.datetime.now(datetime.UTC).timestamp() + self._time_offset
 
     def update_server_time_offset(self, server_time: float):
-        self._time_offset = server_time - datetime.datetime.now(timezone.utc).timestamp()
+        self._time_offset = server_time - datetime.datetime.now(datetime.UTC).timestamp()
 
 
 class OkxAuth:
@@ -48,10 +47,13 @@ class OkxAuth:
                 hashlib.sha256).digest()).decode()
         return signature
 
-    def authentication_headers(self, method: str, path_url: str, params: Optional[Dict] = None, data: Optional[str] = None) -> Dict[str, Any]:
-        # 使用与用户代码相同的时间戳生成方式
-        timestamp = datetime.datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+    def authentication_headers(self, method: str, full_url: str, params: Optional[Dict] = None, data: Optional[str] = None) -> Dict[str, Any]:
+        # Hummingbot 官方时间戳生成方式
+        timestamp = datetime.datetime.fromtimestamp(self.time_provider.time(), datetime.UTC).isoformat(timespec="milliseconds")
+        timestamp = timestamp.replace("+00:00", "Z")
 
+        # 从完整 URL 提取路径（Hummingbot 官方逻辑）
+        path_url = f"/api{full_url.split('/api')[-1]}"
         if params:
             query_string_components = urlencode(params)
             path_url = f"{path_url}?{query_string_components}"
