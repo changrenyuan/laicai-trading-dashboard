@@ -5,10 +5,12 @@
 import axios, { type AxiosInstance } from 'axios'
 import { ElMessage } from 'element-plus'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 console.log('[API Client] 初始化 API 客户端')
-console.log('[API Client] API_BASE_URL:', API_BASE_URL)
+console.log('[API Client] VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL)
+console.log('[API Client] API_BASE_URL (used):', API_BASE_URL)
+console.log('[API Client] Will use Vite Proxy:', API_BASE_URL === '')
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
