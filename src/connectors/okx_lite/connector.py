@@ -164,12 +164,28 @@ class OKXConnector:
                 data = await response.json()
                 if data.get('code') == '0':
                     balance = {}
-                    for item in data.get('data', [{}])[0].get('details', []):
-                        balance[item['ccy']] = {
-                            'total': Decimal(str(item['bal'])),
-                            'available': Decimal(str(item['availBal'])),
-                            'frozen': Decimal(str(item['frozenBal']))
-                        }
+
+                    # 打印原始数据以便调试
+                    print(f"📊 交易账户 API 响应: {data}")
+
+                    # 安全地获取数据
+                    data_list = data.get('data', [])
+                    if data_list and len(data_list) > 0:
+                        account_data = data_list[0]
+                        details = account_data.get('details', [])
+
+                        print(f"📊 账户数据结构: {account_data}")
+                        print(f"📊 详情数量: {len(details)}")
+
+                        for item in details:
+                            ccy = item.get('ccy')
+                            if ccy:
+                                balance[ccy] = {
+                                    'total': Decimal(str(item.get('bal', 0))),
+                                    'available': Decimal(str(item.get('availBal', 0))),
+                                    'frozen': Decimal(str(item.get('frozenBal', 0)))
+                                }
+
                     print(f"✅ 获取余额成功: {len(balance)} 种货币")
                     return balance
                 else:
@@ -204,12 +220,22 @@ class OKXConnector:
                 data = await response.json()
                 if data.get('code') == '0':
                     balance = {}
-                    for item in data.get('data', []):
-                        balance[item['ccy']] = {
-                            'total': Decimal(str(item['bal'])),
-                            'available': Decimal(str(item['availBal'])),
-                            'frozen': Decimal(str(item['frozenBal']))
-                        }
+
+                    # 打印原始数据以便调试
+                    print(f"💰 资金账户 API 响应: {data}")
+
+                    # 安全地获取数据
+                    data_list = data.get('data', [])
+
+                    for item in data_list:
+                        ccy = item.get('ccy')
+                        if ccy:
+                            balance[ccy] = {
+                                'total': Decimal(str(item.get('bal', 0))),
+                                'available': Decimal(str(item.get('availBal', 0))),
+                                'frozen': Decimal(str(item.get('frozenBal', 0)))
+                            }
+
                     print(f"✅ 获取资金账户余额成功: {len(balance)} 种货币")
                     return balance
                 else:
