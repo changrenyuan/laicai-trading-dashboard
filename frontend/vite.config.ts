@@ -17,6 +17,12 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
+        // 如果后端需要通过 Clash 代理访问外部 API，取消下面的注释
+        // configure: (proxy, options) => {
+        //   proxy.on('proxyReq', (proxyReq, req, res) => {
+        //     proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress)
+        //   })
+        // }
       },
       '/ws': {
         target: 'ws://localhost:5000',

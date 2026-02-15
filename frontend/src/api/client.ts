@@ -7,6 +7,9 @@ import { ElMessage } from 'element-plus'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
 
+console.log('[API Client] 初始化 API 客户端')
+console.log('[API Client] API_BASE_URL:', API_BASE_URL)
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 10000,
@@ -18,10 +21,18 @@ const apiClient: AxiosInstance = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
+    console.log('[API Client] 发送请求:', {
+      method: config.method?.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      params: config.params,
+      data: config.data,
+    })
     return config
   },
   (error) => {
-    console.error('API 请求错误:', error)
+    console.error('[API Client] 请求拦截器错误:', error)
     return Promise.reject(error)
   }
 )
@@ -29,10 +40,28 @@ apiClient.interceptors.request.use(
 // 响应拦截器
 apiClient.interceptors.response.use(
   (response) => {
+    console.log('[API Client] 响应成功:', {
+      status: response.status,
+      url: response.config.url,
+      data: response.data,
+    })
     return response.data
   },
   (error) => {
-    console.error('API 响应错误:', error)
+    console.error('[API Client] 响应错误:', {
+      message: error.message,
+      code: error.code,
+      response: error.response ? {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+      } : '无响应',
+      config: error.config ? {
+        url: error.config.url,
+        method: error.config.method,
+        baseURL: error.config.baseURL,
+      } : '无配置',
+    })
     const message = error.response?.data?.error || error.message || '请求失败'
     ElMessage.error(message)
     return Promise.reject(error)
