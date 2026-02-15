@@ -13,19 +13,24 @@ export default defineConfig({
   server: {
     port: 5173,
     host: '0.0.0.0',
+    // ✅ 配置代理，避免 Clash 代理拦截 localhost
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true,
-        // 如果后端需要通过 Clash 代理访问外部 API，取消下面的注释
-        // configure: (proxy, options) => {
-        //   proxy.on('proxyReq', (proxyReq, req, res) => {
-        //     proxyReq.setHeader('X-Forwarded-For', req.socket.remoteAddress)
-        //   })
-        // }
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // 添加请求头标识
+            proxyReq.setHeader('X-Forwarded-Host', req.headers['host'])
+            proxyReq.setHeader('X-Forwarded-Proto', req.headers['x-forwarded-proto'] || 'http')
+          })
+          proxy.on('error', (err, req, res) => {
+            console.error('[Vite Proxy] Error:', err)
+          })
+        }
       },
       '/ws': {
-        target: 'ws://localhost:5000',
+        target: 'ws://127.0.0.1:5000',
         ws: true,
       },
     },

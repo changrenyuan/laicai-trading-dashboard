@@ -197,6 +197,9 @@ function handleWSMessage(message: WSMessage) {
   }
 }
 
+// ✅ 修复：将 onUnmounted 放在顶层
+let refreshInterval: number | null = null
+
 onMounted(async () => {
   // 初始化 stores
   await Promise.all([
@@ -212,15 +215,19 @@ onMounted(async () => {
   wsClient.onMessage(handleWSMessage)
 
   // 定时刷新数据
-  const refreshInterval = setInterval(() => {
+  refreshInterval = setInterval(() => {
     strategyStore.fetchStrategies()
     accountStore.fetchAccount()
   }, 5000)
+})
 
-  onUnmounted(() => {
+onUnmounted(() => {
+  console.log('[Layout] 组件卸载，清理资源')
+  if (refreshInterval) {
     clearInterval(refreshInterval)
-    wsClient.disconnect()
-  })
+    refreshInterval = null
+  }
+  wsClient.disconnect()
 })
 </script>
 

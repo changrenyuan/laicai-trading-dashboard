@@ -5,6 +5,7 @@ Web 服务器 - 支持多策略实例管理
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict, List, Optional
 import json
 import logging
@@ -27,12 +28,21 @@ class WebServer:
         self.websocket_clients = []
         self.ws_log_handler = ws_log_handler
 
+        # ✅ 添加 CORS 中间件
+        self.app.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],  # 允许所有来源（开发环境）
+            allow_credentials=True,
+            allow_methods=["*"],  # 允许所有方法
+            allow_headers=["*"],  # 允许所有请求头
+        )
+
         # 添加全局异常处理
         @self.app.exception_handler(Exception)
         async def global_exception_handler(request, exc):
-            print(f"Global exception caught: {exc}", file=sys.stderr)
-            print(f"Traceback: {traceback.format_exc()}", file=sys.stderr)
             import traceback
+            logger.error(f"Global exception caught: {exc}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
             return {
                 "error": str(exc),
                 "traceback": traceback.format_exc()
