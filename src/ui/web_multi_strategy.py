@@ -63,8 +63,6 @@ class WebServer:
             ws_log_handler
         )
 
-        # 添加示例数据用于测试
-        self.api_extension.add_sample_data()
         logger.info("Web 服务器初始化完成，API 扩展已加载")
 
     def _setup_routes(self):

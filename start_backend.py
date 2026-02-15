@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-启动后端服务器 - 使用真实交易所
+启动后端服务器 - 使用真实交易所（从 .env 读取配置）
 """
 import asyncio
-import json
 import logging
 import sys
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # 添加项目根目录到路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -20,19 +21,8 @@ from src.ui.web_multi_strategy import WebServer
 from src.connectors.okx_lite import OKXConnector
 
 
-async def load_config(config_path: str = "config.json") -> dict:
-    """加载配置文件"""
-    try:
-        with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
-        return config
-    except FileNotFoundError:
-        print(f"❌ 错误: 配置文件 {config_path} 不存在")
-        print("请先配置 config.json 文件，填入你的交易所 API 密钥")
-        sys.exit(1)
-    except json.JSONDecodeError as e:
-        print(f"❌ 错误: 配置文件格式错误: {e}")
-        sys.exit(1)
+# 加载 .env 文件
+load_dotenv()
 
 
 async def main():
@@ -48,28 +38,28 @@ async def main():
     )
     logger = logging.getLogger(__name__)
 
-    # 加载配置
-    config = await load_config()
+    # 从环境变量读取配置
+    api_key = os.getenv('OKX_API_KEY')
+    secret_key = os.getenv('OKX_SECRET_KEY')
+    passphrase = os.getenv('OKX_PASSPHRASE')
 
     # 验证 API 密钥
-    api_creds = config.get('api_credentials', {})
-    if any([
-        api_creds.get('api_key') == 'YOUR_OKX_API_KEY',
-        api_creds.get('secret_key') == 'YOUR_OKX_SECRET_KEY',
-        api_creds.get('passphrase') == 'YOUR_OKX_PASSPHRASE'
-    ]):
-        print("❌ 错误: 请在 config.json 中配置真实的 OKX API 密钥")
-        print("配置位置: config.json -> api_credentials")
-        print("你需要:")
-        print("  1. 登录 OKX 官网: https://www.okx.com")
-        print("  2. 进入 API 管理，创建 API Key")
-        print("  3. 填入 api_key, secret_key, passphrase")
+    if not api_key or not secret_key or not passphrase:
+        print("❌ 错误: 请在 .env 文件中配置 OKX API 密钥")
+        print("配置步骤:")
+        print("  1. 复制 .env.example 为 .env")
+        print("  2. 填入你的 OKX API 密钥")
+        print("  3. 重新启动服务")
         sys.exit(1)
 
     # 创建核心组件
     event_bus = EventBus()
     position_manager = PositionManager()
-    risk_config = config.get('risk_management', {})
+    risk_config = {
+        'max_daily_loss': float(os.getenv('MAX_DAILY_LOSS', 0.05)),
+        'max_position_size': float(os.getenv('MAX_POSITION_SIZE', 0.1)),
+        'max_order_size': float(os.getenv('MAX_ORDER_SIZE', 0.01))
+    }
     risk_manager = RiskManager(risk_config)
     strategy_manager = StrategyManager(event_bus, position_manager, risk_manager)
 
@@ -78,19 +68,18 @@ async def main():
 
     # 创建真实交易所连接
     exchange_config = {
-        'api_key': api_creds.get('api_key'),
-        'secret_key': api_creds.get('secret_key'),
-        'passphrase': api_creds.get('passphrase'),
-        'registration_sub_domain': config['exchange'].get('registration_sub_domain', 'www'),
-        'sandbox': config['exchange'].get('sandbox', False),
+        'api_key': api_key,
+        'secret_key': secret_key,
+        'passphrase': passphrase,
+        'registration_sub_domain': os.getenv('OKX_SUB_DOMAIN', 'www'),
+        'sandbox': os.getenv('OKX_SANDBOX', 'false').lower() == 'true',
     }
 
     # 添加代理配置
-    proxy_config = config.get('proxy', {})
-    if proxy_config.get('enabled', False):
-        proxy_type = proxy_config.get('type', 'http')
-        proxy_host = proxy_config.get('host', '127.0.0.1')
-        proxy_port = proxy_config.get('port', 7890)
+    if os.getenv('PROXY_ENABLED', 'false').lower() == 'true':
+        proxy_type = os.getenv('PROXY_TYPE', 'http')
+        proxy_host = os.getenv('PROXY_HOST', '127.0.0.1')
+        proxy_port = os.getenv('PROXY_PORT', '7890')
 
         if proxy_type == 'socks5':
             exchange_config['proxy'] = f'socks5://{proxy_host}:{proxy_port}'
@@ -101,24 +90,39 @@ async def main():
 
     # 创建真实交易所实例
     print(f"🔗 正在连接 OKX 交易所...")
-    print(f"   模式: {'沙盒' if config['exchange'].get('sandbox') else '实盘'}")
-    print(f"   子域名: {config['exchange'].get('registration_sub_domain', 'www')}")
-    if proxy_config.get('enabled', False):
-        print(f"   代理: {exchange_config.get('proxy', '无')}")
+    print(f"   模式: {'沙盒' if exchange_config['sandbox'] else '实盘'}")
+    print(f"   子域名: {exchange_config['registration_sub_domain']}")
+    if 'proxy' in exchange_config:
+        print(f"   代理: {exchange_config['proxy']}")
 
     try:
         okx_connector = OKXConnector(exchange_config)
-        await okx_connector.__aenter__()
+        await asyncio.wait_for(okx_connector.__aenter__(), timeout=10.0)
 
         # 测试连接
-        balance = await okx_connector.get_balance()
+        balance = await asyncio.wait_for(okx_connector.get_balance(), timeout=10.0)
         print(f"✅ 成功连接到 OKX 交易所")
         print(f"💰 账户余额: {balance}")
+    except asyncio.TimeoutError:
+        print(f"⚠️  连接 OKX 交易所超时，服务将以离线模式启动")
+        print(f"请检查:")
+        print(f"  1. 网络连接是否正常")
+        print(f"  2. 代理配置是否正确（如果使用代理）")
+        print(f"  3. .env 文件中的 API 密钥是否正确")
+        print(f"  4. OKX API 密钥是否有效（需要填写真实的 API 密钥）")
+        print(f"\n💡 提示: 配置正确的 API 密钥后，重启服务即可连接")
+        # 不退出，继续启动服务
     except Exception as e:
-        print(f"❌ 连接 OKX 交易所失败: {e}")
+        print(f"⚠️  连接 OKX 交易所失败，服务将以离线模式启动")
+        print(f"错误信息: {e}")
+        print(f"请检查:")
+        print(f"  1. .env 文件中的 API 密钥是否正确")
+        print(f"  2. 网络连接是否正常")
+        print(f"  3. 代理配置是否正确（如果使用代理）")
         import traceback
         print(traceback.format_exc())
-        sys.exit(1)
+        print(f"\n💡 提示: 配置正确的 API 密钥后，重启服务即可连接")
+        # 不退出，继续启动服务
 
     # 创建 Bot 实例（使用真实交易所）
     class RealBot:
@@ -136,7 +140,7 @@ async def main():
     # 创建 Web 服务器
     print(f"🌐 正在启动 Web 服务器...")
     web_server = WebServer(
-        config=config,
+        config=risk_config,
         bot_instance=bot,
         ws_log_handler=ws_log_handler
     )

@@ -98,7 +98,7 @@ class OKXConnector:
             timeout=timeout
         )
 
-        await self._sync_time()
+        await asyncio.wait_for(self._sync_time(), timeout=10.0)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
