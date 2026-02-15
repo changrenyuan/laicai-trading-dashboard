@@ -3,6 +3,7 @@ OKX 交易所连接器（基于 Hummingbot 代码的简化版本）
 直接复制 Hummingbot 的 OKX 相关纯 Python 代码
 支持代理配置（HTTP/SOCKS5）
 """
+import os
 import asyncio
 import aiohttp
 import json
@@ -98,7 +99,7 @@ class OKXConnector:
             timeout=timeout
         )
 
-        await asyncio.wait_for(self._sync_time(), timeout=10.0)
+        await self._sync_time()
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):

@@ -76,17 +76,28 @@ async def main():
     }
 
     # 添加代理配置
+    proxy_url = None
     if os.getenv('PROXY_ENABLED', 'false').lower() == 'true':
-        proxy_type = os.getenv('PROXY_TYPE', 'http')
-        proxy_host = os.getenv('PROXY_HOST', '127.0.0.1')
-        proxy_port = os.getenv('PROXY_PORT', '7890')
-
-        if proxy_type == 'socks5':
-            exchange_config['proxy'] = f'socks5://{proxy_host}:{proxy_port}'
-        elif proxy_type == 'http':
-            exchange_config['proxy'] = f'http://{proxy_host}:{proxy_port}'
+        # 优先使用标准环境变量
+        proxy_url = os.getenv('HTTPS_PROXY') or os.getenv('HTTP_PROXY')
+        if proxy_url:
+            print(f"✅ 使用代理（从环境变量）: {proxy_url}")
+            exchange_config['proxy'] = proxy_url
         else:
-            print(f"⚠️  警告: 不支持的代理类型 {proxy_type}，将不使用代理")
+            # 回退到自定义配置
+            proxy_type = os.getenv('PROXY_TYPE', 'http')
+            proxy_host = os.getenv('PROXY_HOST', '127.0.0.1')
+            proxy_port = os.getenv('PROXY_PORT', '7890')
+
+            if proxy_type == 'socks5':
+                exchange_config['proxy'] = f'socks5://{proxy_host}:{proxy_port}'
+            elif proxy_type == 'http':
+                exchange_config['proxy'] = f'http://{proxy_host}:{proxy_port}'
+            else:
+                print(f"⚠️  警告: 不支持的代理类型 {proxy_type}，将不使用代理")
+            print(f"✅ 使用代理（自定义配置）: {exchange_config.get('proxy', '无')}")
+    else:
+        print(f"⚠️  代理未启用 (PROXY_ENABLED=false)")
 
     # 创建真实交易所实例
     print(f"🔗 正在连接 OKX 交易所...")
@@ -97,21 +108,12 @@ async def main():
 
     try:
         okx_connector = OKXConnector(exchange_config)
-        await asyncio.wait_for(okx_connector.__aenter__(), timeout=10.0)
+        await okx_connector.__aenter__()
 
         # 测试连接
-        balance = await asyncio.wait_for(okx_connector.get_balance(), timeout=10.0)
+        balance = await okx_connector.get_balance()
         print(f"✅ 成功连接到 OKX 交易所")
         print(f"💰 账户余额: {balance}")
-    except asyncio.TimeoutError:
-        print(f"⚠️  连接 OKX 交易所超时，服务将以离线模式启动")
-        print(f"请检查:")
-        print(f"  1. 网络连接是否正常")
-        print(f"  2. 代理配置是否正确（如果使用代理）")
-        print(f"  3. .env 文件中的 API 密钥是否正确")
-        print(f"  4. OKX API 密钥是否有效（需要填写真实的 API 密钥）")
-        print(f"\n💡 提示: 配置正确的 API 密钥后，重启服务即可连接")
-        # 不退出，继续启动服务
     except Exception as e:
         print(f"⚠️  连接 OKX 交易所失败，服务将以离线模式启动")
         print(f"错误信息: {e}")
@@ -122,7 +124,6 @@ async def main():
         import traceback
         print(traceback.format_exc())
         print(f"\n💡 提示: 配置正确的 API 密钥后，重启服务即可连接")
-        # 不退出，继续启动服务
 
     # 创建 Bot 实例（使用真实交易所）
     class RealBot:
