@@ -66,10 +66,11 @@ async def main():
             }
 
         async def get_balance(self):
+            # Mock 数据 - 使用更真实的金额
             return {
-                "USDT": {"total": 10000.0, "available": 9500.0, "frozen": 500.0},
-                "BTC": {"total": 0.1, "available": 0.08, "frozen": 0.02},
-                "ETH": {"total": 2.0, "available": 1.8, "frozen": 0.2}
+                "USDT": {"total": 500.0, "available": 450.0, "frozen": 50.0},
+                "BTC": {"total": 0.001, "available": 0.0008, "frozen": 0.0002},
+                "ETH": {"total": 0.01, "available": 0.008, "frozen": 0.002}
             }
 
         async def get_open_orders(self, symbol=None):

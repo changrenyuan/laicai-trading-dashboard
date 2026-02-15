@@ -27,10 +27,14 @@ export const useStrategyStore = defineStore('strategy', () => {
     loading.value = true
     error.value = null
     try {
-      strategies.value = await api.getStrategyInstances()
+      const result = await api.getStrategyInstances()
+      // API 返回格式: { instances: [] }
+      strategies.value = result.instances || []
+      console.log('[Strategy Store] 策略列表获取成功:', strategies.value)
     } catch (err) {
       error.value = err instanceof Error ? err.message : '获取策略列表失败'
-      console.error('获取策略列表失败:', err)
+      console.error('[Strategy Store] 获取策略列表失败:', err)
+      strategies.value = [] // 确保失败时是空数组
     } finally {
       loading.value = false
     }

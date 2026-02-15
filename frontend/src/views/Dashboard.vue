@@ -47,7 +47,7 @@
             </div>
             <div class="stat-info">
               <div class="stat-label">运行策略</div>
-              <div class="stat-value">{{ strategyStore.runningCount }} / {{ strategyStore.strategies.length }}</div>
+              <div class="stat-value">{{ strategyStore.runningCount }} / {{ (strategyStore.strategies || []).length }}</div>
               <div class="stat-change">
                 活跃 / 总数
               </div>

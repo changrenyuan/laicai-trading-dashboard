@@ -13,41 +13,41 @@
             </div>
           </template>
 
-          <el-table :data="strategyStore.strategies" stripe v-loading="strategyStore.loading">
+          <el-table :data="strategyStore.strategies || []" stripe v-loading="strategyStore.loading" empty-text="暂无策略实例">
             <el-table-column prop="instance_name" label="名称" width="150" />
-            <el-table-column prop="strategy_name" label="策略类型" width="150" />
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="配置" min-width="200">
-              <template #default="{ row }">
-                <div class="config-preview">
-                  <span>交易对: {{ row.config?.symbol || '-' }}</span>
-                  <span>交易所: {{ row.config?.exchange || '-' }}</span>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="盈亏" width="100">
-              <template #default="{ row }">
-                <span :class="{ positive: (row.stats?.realized_pnl || 0) >= 0, negative: (row.stats?.realized_pnl || 0) < 0 }">
-                  {{ (row.stats?.realized_pnl || 0) >= 0 ? '+' : '' }}{{ (row.stats?.realized_pnl || 0).toFixed(2) }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
-              <template #default="{ row }">
-                <el-button-group size="small">
-                  <el-button type="primary" @click="handleViewDetail(row)">
-                    详情
-                  </el-button>
-                  <el-button
-                    v-if="row.status === 'stopped'"
-                    type="success"
-                    :icon="VideoPlay"
+              <el-table-column prop="strategy_name" label="策略类型" width="150" />
+              <el-table-column label="状态" width="100">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.status)" size="small">
+                    {{ getStatusText(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="配置" min-width="200">
+                <template #default="{ row }">
+                  <div class="config-preview">
+                    <span>交易对: {{ row.config?.symbol || '-' }}</span>
+                    <span>交易所: {{ row.config?.exchange || '-' }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="盈亏" width="100">
+                <template #default="{ row }">
+                  <span :class="{ positive: (row.stats?.realized_pnl || 0) >= 0, negative: (row.stats?.realized_pnl || 0) < 0 }">
+                    {{ (row.stats?.realized_pnl || 0) >= 0 ? '+' : '' }}{{ (row.stats?.realized_pnl || 0).toFixed(2) }}
+                  </span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="220" fixed="right">
+                <template #default="{ row }">
+                  <el-button-group size="small">
+                    <el-button type="primary" @click="handleViewDetail(row)">
+                      详情
+                    </el-button>
+                    <el-button
+                      v-if="row.status === 'stopped'"
+                      type="success"
+                      :icon="VideoPlay"
                     @click="handleStart(row.instance_id)"
                   >
                     启动
@@ -100,7 +100,7 @@
           <template #header>
             <span>盈亏排行</span>
           </template>
-          <el-table :data="topStrategies" stripe>
+          <el-table :data="topStrategies || []" stripe empty-text="暂无数据">
             <el-table-column prop="instance_name" label="策略" />
             <el-table-column label="盈亏" width="100">
               <template #default="{ row }">
@@ -405,12 +405,16 @@ async function handleCreateStrategy() {
 }
 
 onMounted(async () => {
+  console.log('[Strategies Page] 开始加载策略数据')
   await strategyStore.fetchStrategies()
+  console.log('[Strategies Page] 策略数据加载完成:', strategyStore.strategies)
+  
   // 获取可用策略列表
   try {
     availableStrategies.value = await api.getStrategies()
+    console.log('[Strategies Page] 可用策略列表:', availableStrategies.value)
   } catch (err) {
-    console.error('获取策略列表失败:', err)
+    console.error('[Strategies Page] 获取策略列表失败:', err)
   }
 })
 </script>
