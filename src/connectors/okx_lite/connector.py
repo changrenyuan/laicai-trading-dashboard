@@ -153,6 +153,11 @@ class OKXConnector:
         try:
             url = f"{self._base_url}{OKX_BALANCE_PATH}"
             headers = self._auth.authentication_headers("GET", OKX_BALANCE_PATH)
+
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
+
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.get(url, headers=headers, **kwargs) as response:
@@ -188,6 +193,11 @@ class OKXConnector:
         try:
             url = f"{self._base_url}{OKX_ASSET_BALANCE_PATH}"
             headers = self._auth.authentication_headers("GET", OKX_ASSET_BALANCE_PATH)
+
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
+
             kwargs = self._get_request_kwargs()
 
             async with self._http_client.get(url, headers=headers, **kwargs) as response:
@@ -283,6 +293,10 @@ class OKXConnector:
             url = f"{self._base_url}{OKX_PLACE_ORDER_PATH}"
             headers = self._auth.authentication_headers("POST", OKX_PLACE_ORDER_PATH)
 
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
+
             data = {
                 "instId": symbol,
                 "tdMode": "cash",
@@ -338,6 +352,10 @@ class OKXConnector:
                 return False
 
             headers = self._auth.authentication_headers("POST", OKX_ORDER_CANCEL_PATH)
+
+            # 如果是模拟盘，添加模拟盘标记
+            if self.sandbox:
+                headers["x-simulated-trading"] = "1"
 
             data = {
                 "instId": order['symbol'],
