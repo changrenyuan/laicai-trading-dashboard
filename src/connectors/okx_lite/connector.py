@@ -49,6 +49,7 @@ class OKXConnector:
             - sandbox: 是否使用沙盒环境
             - proxy: 代理配置（支持多种格式）
         """
+        self.exchange_name = "okx"
         self.okx_api_key = config.get('api_key')
         self.okx_secret_key = config.get('secret_key')
         self.okx_passphrase = config.get('passphrase')
