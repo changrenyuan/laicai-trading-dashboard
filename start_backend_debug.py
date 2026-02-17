@@ -6,8 +6,13 @@
 import asyncio
 import logging
 import sys
+import os
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv()
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
@@ -56,6 +61,10 @@ async def main():
     # 创建 WebServer
     web_server = WebServerV2(config=config, bot_instance=bot)
 
+    # 从环境变量读取配置
+    host = os.getenv("HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", "5000"))
+
     # 订阅 EventBus 事件，用于调试
     def event_debug_handler(event):
         logger.info(f"📤 Event Published: type={event.get('type')}, timestamp={event.get('timestamp')}")
@@ -71,13 +80,13 @@ async def main():
 
     logger.info("="*60)
     logger.info("✅ WebServer v2 初始化完成")
-    logger.info("📍 API 地址: http://localhost:5000")
-    logger.info("🔌 WebSocket 地址: ws://localhost:5000/ws")
+    logger.info(f"📍 API 地址: http://localhost:{port}")
+    logger.info(f"🔌 WebSocket 地址: ws://localhost:{port}/ws")
     logger.info("="*60)
     logger.info("")
 
     # 启动服务
-    await web_server.run_async(host="0.0.0.0", port=5000)
+    await web_server.run_async(host=host, port=port)
 
 
 if __name__ == "__main__":

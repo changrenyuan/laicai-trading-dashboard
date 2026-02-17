@@ -279,13 +279,13 @@ class WebServerV2:
 
         return state
 
-    def run(self, host: str = "0.0.0.0", port: int = 5000):
+    def run(self, host: str = "0.0.0.0", port: int = 8000):
         """运行服务器"""
         import uvicorn
         logger.info(f"Starting WebServer v2 on {host}:{port}")
         uvicorn.run(self.app, host=host, port=port)
 
-    async def run_async(self, host: str = "0.0.0.0", port: int = 5000):
+    async def run_async(self, host: str = "0.0.0.0", port: int = 8000):
         """异步运行服务器"""
         import uvicorn
         config = uvicorn.Config(self.app, host=host, port=port)
