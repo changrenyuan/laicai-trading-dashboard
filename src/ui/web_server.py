@@ -362,15 +362,14 @@ class WebServer:
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
-                # 发送连接成功事件
-                await self.event_bus.publish_connected()
-
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
-                        await websocket.send_text(json.dumps(event))
+                        message = json.dumps(event, ensure_ascii=False)
+                        await websocket.send_text(message)
+                        logger.debug(f"Event sent to client: {event.get('type')}")
                     except Exception as e:
-                        logger.error(f"Failed to send event to client: {e}")
+                        logger.error(f"Failed to send event to client: {e}", exc_info=True)
 
                 # 订阅所有事件类型
                 event_types = [
@@ -380,23 +379,40 @@ class WebServer:
                 ]
                 for event_type in event_types:
                     self.event_bus.subscribe(event_type, event_forwarder)
+                    logger.debug(f"Subscribed to event type: {event_type}")
+
+                # 发送连接成功事件
+                try:
+                    await self.event_bus.publish_connected()
+                except Exception as e:
+                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
 
             try:
                 while True:
                     data = await websocket.receive_text()
+                    logger.debug(f"Received message from client: {data}")
+
                     # 处理客户端发送的命令
                     try:
                         command = json.loads(data)
+                        logger.debug(f"Parsed command: {command}")
+
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))
-                    except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON received: {data}")
+                            logger.debug(f"Command response sent: {response.get('success')}")
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Invalid JSON received: {data}, error: {e}")
                     except Exception as e:
-                        logger.error(f"Error handling WebSocket message: {e}")
-            except WebSocketDisconnect:
+                        logger.error(f"Error handling WebSocket message: {e}", exc_info=True)
+
+            except WebSocketDisconnect as e:
                 self.websocket_clients.remove(websocket)
-                logger.info("WebSocket client disconnected from /ws")
+                logger.info(f"WebSocket client disconnected from /ws (code: {e.code}, reason: {e.reason})")
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}", exc_info=True)
+                if websocket in self.websocket_clients:
+                    self.websocket_clients.remove(websocket)
 
         @self.app.websocket("/api/stream")
         async def api_stream_endpoint(websocket: WebSocket):
@@ -407,15 +423,14 @@ class WebServer:
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
-                # 发送连接成功事件
-                await self.event_bus.publish_connected()
-
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
-                        await websocket.send_text(json.dumps(event))
+                        message = json.dumps(event, ensure_ascii=False)
+                        await websocket.send_text(message)
+                        logger.debug(f"Event sent to client: {event.get('type')}")
                     except Exception as e:
-                        logger.error(f"Failed to send event to client: {e}")
+                        logger.error(f"Failed to send event to client: {e}", exc_info=True)
 
                 # 订阅所有事件类型
                 event_types = [
@@ -425,23 +440,40 @@ class WebServer:
                 ]
                 for event_type in event_types:
                     self.event_bus.subscribe(event_type, event_forwarder)
+                    logger.debug(f"Subscribed to event type: {event_type}")
+
+                # 发送连接成功事件
+                try:
+                    await self.event_bus.publish_connected()
+                except Exception as e:
+                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
 
             try:
                 while True:
                     data = await websocket.receive_text()
+                    logger.debug(f"Received message from client: {data}")
+
                     # 处理客户端发送的命令
                     try:
                         command = json.loads(data)
+                        logger.debug(f"Parsed command: {command}")
+
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))
-                    except json.JSONDecodeError:
-                        logger.warning(f"Invalid JSON received: {data}")
+                            logger.debug(f"Command response sent: {response.get('success')}")
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"Invalid JSON received: {data}, error: {e}")
                     except Exception as e:
-                        logger.error(f"Error handling WebSocket message: {e}")
-            except WebSocketDisconnect:
+                        logger.error(f"Error handling WebSocket message: {e}", exc_info=True)
+
+            except WebSocketDisconnect as e:
                 self.websocket_clients.remove(websocket)
-                logger.info("WebSocket client disconnected from /api/stream")
+                logger.info(f"WebSocket client disconnected from /api/stream (code: {e.code}, reason: {e.reason})")
+            except Exception as e:
+                logger.error(f"WebSocket error: {e}", exc_info=True)
+                if websocket in self.websocket_clients:
+                    self.websocket_clients.remove(websocket)
 
         @self.app.websocket("/ws/logs")
         async def logs_websocket_endpoint(websocket: WebSocket):

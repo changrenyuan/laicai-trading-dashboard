@@ -47,6 +47,12 @@ async def main():
             self.strategy = None
             self.position_manager = PositionManager()
             self.risk_manager = RiskManager({})
+            # 创建事件总线
+            from src.core.event_bus import EventBus
+            self.event_bus = EventBus()
+            # 创建策略管理器
+            from src.core.strategy_manager import StrategyManager
+            self.strategy_manager = None  # 可选，暂时为 None
 
     bot = MockBot()
 
