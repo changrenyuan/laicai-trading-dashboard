@@ -248,15 +248,17 @@ class WebServerV2:
 
         # 获取仓位状态
         if hasattr(self.bot, 'position_manager'):
-            positions = self.bot.position_manager.to_dict()
+            positions_data = self.bot.position_manager.to_dict()
+            open_positions = positions_data.get("open_positions", {})
             state["positions"] = [
                 {
-                    "symbol": symbol,
-                    "size": pos.get('amount', 0),
+                    "symbol": pos.get('symbol', ''),
+                    "size": pos.get('size', 0),
                     "pnl": pos.get('unrealized_pnl', 0),
-                    "side": pos.get('side', 'long')
+                    "side": pos.get('side', 'long'),
+                    "entry_price": pos.get('entry_price', 0)
                 }
-                for symbol, pos in positions.items()
+                for pos in open_positions.values()
             ]
         else:
             state["positions"] = []
