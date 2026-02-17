@@ -14,10 +14,25 @@ logger = logging.getLogger(__name__)
 
 class EngineEventType(Enum):
     """引擎事件类型 - 与前端 engineStore 对齐"""
+    # 连接状态
+    CONNECTED = "connected"              # 引擎已连接
+    DISCONNECTED = "disconnected"        # 引擎断开连接
+    CONNECTION = "connection"            # 交易所连接状态更新
+
+    # 系统状态
+    SYSTEM_STATUS = "system_status"      # 系统状态（uptime、profit等）
+
+    # 交易数据
     PRICE = "price"                      # 价格更新
     ORDER_UPDATE = "order_update"        # 订单更新
+    TRADE = "trade"                      # 交易成交
     POSITION = "position"                # 仓位更新
+    BALANCE = "balance"                  # 余额更新
+
+    # 策略管理
     STRATEGY = "strategy"                # 策略状态
+
+    # 系统日志
     LOG = "log"                          # 日志消息
     SNAPSHOT = "snapshot"                # 状态快照（重连时发送）
     ERROR = "error"                      # 错误事件
@@ -244,3 +259,150 @@ class EventBus:
         }
         """
         await self.publish(EngineEventType.SNAPSHOT.value, snapshot_data)
+
+    # ============ 新增事件类型 ============
+
+    async def publish_connected(self):
+        """
+        推送引擎连接状态 - 已连接
+
+        格式: { "type": "connected", "timestamp": 1739800800 }
+        """
+        await self.publish(EngineEventType.CONNECTED.value, {})
+
+    async def publish_disconnected(self, reason: str = None):
+        """
+        推送引擎连接状态 - 断开连接
+
+        格式: { "type": "disconnected", "reason": "Connection lost", "timestamp": 1739800800 }
+        """
+        data = {}
+        if reason:
+            data["reason"] = reason
+        await self.publish(EngineEventType.DISCONNECTED.value, data)
+
+    async def publish_system_status(
+        self,
+        uptime: int,
+        bot_status: str,
+        active_strategies: int = 0,
+        total_profit: float = 0.0,
+        total_trades: int = 0,
+        success_rate: float = 0.0
+    ):
+        """
+        推送系统状态
+
+        格式: {
+            "type": "system_status",
+            "uptime": 86400,
+            "bot_status": "running",
+            "active_strategies": 3,
+            "total_profit": 12453.00,
+            "total_trades": 1284,
+            "success_rate": 94.2,
+            "timestamp": 1739800800
+        }
+        """
+        await self.publish(EngineEventType.SYSTEM_STATUS.value, {
+            "uptime": uptime,
+            "bot_status": bot_status,
+            "active_strategies": active_strategies,
+            "total_profit": total_profit,
+            "total_trades": total_trades,
+            "success_rate": success_rate
+        })
+
+    async def publish_balance(
+        self,
+        asset: str,
+        free: float,
+        used: float,
+        total: float,
+        exchange: str = "okx"
+    ):
+        """
+        推送余额更新
+
+        格式: {
+            "type": "balance",
+            "asset": "USDT",
+            "free": 10000.00,
+            "used": 2345.00,
+            "total": 12345.00,
+            "exchange": "binance",
+            "timestamp": 1739800800
+        }
+        """
+        await self.publish(EngineEventType.BALANCE.value, {
+            "asset": asset,
+            "free": free,
+            "used": used,
+            "total": total,
+            "exchange": exchange
+        })
+
+    async def publish_connection(
+        self,
+        exchange: str,
+        status: str,
+        message: str = None
+    ):
+        """
+        推送连接状态更新
+
+        格式: {
+            "type": "connection",
+            "exchange": "binance",
+            "status": "connected",
+            "message": "Connected successfully",
+            "timestamp": 1739800800
+        }
+        """
+        data = {
+            "exchange": exchange,
+            "status": status
+        }
+        if message:
+            data["message"] = message
+        await self.publish(EngineEventType.CONNECTION.value, data)
+
+    async def publish_trade(
+        self,
+        trade_id: str,
+        order_id: str,
+        symbol: str,
+        price: float,
+        amount: float,
+        side: str,
+        fee: float = 0.0,
+        strategy: str = None
+    ):
+        """
+        推送交易成交事件
+
+        格式: {
+            "type": "trade",
+            "trade_id": "TRD-001",
+            "order_id": "ORD-001",
+            "symbol": "BTC/USDT",
+            "price": 52345.00,
+            "amount": 0.15,
+            "side": "buy",
+            "fee": 7.85,
+            "strategy": "PMM Strategy",
+            "timestamp": 1739800800
+        }
+        """
+        data = {
+            "trade_id": trade_id,
+            "order_id": order_id,
+            "symbol": symbol,
+            "price": price,
+            "amount": amount,
+            "side": side,
+            "fee": fee
+        }
+        if strategy:
+            data["strategy"] = strategy
+        await self.publish(EngineEventType.TRADE.value, data)

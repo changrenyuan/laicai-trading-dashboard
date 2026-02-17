@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 # 导入 API 扩展
 from .api_extension import APIExtension
+# 导入命令处理器
+from ..core.ws_command_handler import WSCommandHandler
 
 
 class WebServer:
@@ -50,6 +52,15 @@ class WebServer:
 
         # 获取策略管理器（如果有）
         self.strategy_manager = getattr(bot_instance, 'strategy_manager', None)
+
+        # 获取事件总线（如果有）
+        self.event_bus = getattr(bot_instance, 'event_bus', None)
+
+        # 初始化命令处理器
+        self.command_handler = None
+        if self.event_bus:
+            self.command_handler = WSCommandHandler(bot_instance, self.event_bus)
+            logger.info("WebSocket 命令处理器初始化完成")
 
         # 设置路由
         self._setup_routes()
@@ -349,15 +360,42 @@ class WebServer:
             self.websocket_clients.append(websocket)
             logger.info("WebSocket client connected to /ws")
 
+            # 如果有事件总线，订阅所有事件并推送给客户端
+            if self.event_bus:
+                # 发送连接成功事件
+                await self.event_bus.publish_connected()
+
+                # 订阅事件总线并推送给客户端
+                async def event_forwarder(event):
+                    try:
+                        await websocket.send_text(json.dumps(event))
+                    except Exception as e:
+                        logger.error(f"Failed to send event to client: {e}")
+
+                # 订阅所有事件类型
+                event_types = [
+                    "connected", "disconnected", "system_status",
+                    "price", "order_update", "trade", "position", "balance",
+                    "strategy", "log", "connection", "error", "snapshot"
+                ]
+                for event_type in event_types:
+                    self.event_bus.subscribe(event_type, event_forwarder)
+
             try:
                 while True:
                     data = await websocket.receive_text()
-                    # 可以处理客户端发送的消息
-                    logger.info(f"Received WebSocket message: {data}")
-
+                    # 处理客户端发送的命令
+                    try:
+                        command = json.loads(data)
+                        if self.command_handler:
+                            response = await self.command_handler.handle_command(command)
+                            await websocket.send_text(json.dumps(response))
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON received: {data}")
+                    except Exception as e:
+                        logger.error(f"Error handling WebSocket message: {e}")
             except WebSocketDisconnect:
-                if websocket in self.websocket_clients:
-                    self.websocket_clients.remove(websocket)
+                self.websocket_clients.remove(websocket)
                 logger.info("WebSocket client disconnected from /ws")
 
         @self.app.websocket("/api/stream")
@@ -367,15 +405,42 @@ class WebServer:
             self.websocket_clients.append(websocket)
             logger.info("WebSocket client connected to /api/stream")
 
+            # 如果有事件总线，订阅所有事件并推送给客户端
+            if self.event_bus:
+                # 发送连接成功事件
+                await self.event_bus.publish_connected()
+
+                # 订阅事件总线并推送给客户端
+                async def event_forwarder(event):
+                    try:
+                        await websocket.send_text(json.dumps(event))
+                    except Exception as e:
+                        logger.error(f"Failed to send event to client: {e}")
+
+                # 订阅所有事件类型
+                event_types = [
+                    "connected", "disconnected", "system_status",
+                    "price", "order_update", "trade", "position", "balance",
+                    "strategy", "log", "connection", "error", "snapshot"
+                ]
+                for event_type in event_types:
+                    self.event_bus.subscribe(event_type, event_forwarder)
+
             try:
                 while True:
                     data = await websocket.receive_text()
-                    # 可以处理客户端发送的消息
-                    logger.info(f"Received WebSocket message: {data}")
-
+                    # 处理客户端发送的命令
+                    try:
+                        command = json.loads(data)
+                        if self.command_handler:
+                            response = await self.command_handler.handle_command(command)
+                            await websocket.send_text(json.dumps(response))
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON received: {data}")
+                    except Exception as e:
+                        logger.error(f"Error handling WebSocket message: {e}")
             except WebSocketDisconnect:
-                if websocket in self.websocket_clients:
-                    self.websocket_clients.remove(websocket)
+                self.websocket_clients.remove(websocket)
                 logger.info("WebSocket client disconnected from /api/stream")
 
         @self.app.websocket("/ws/logs")
