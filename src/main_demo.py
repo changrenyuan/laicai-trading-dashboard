@@ -33,7 +33,7 @@ from src.core.event_bus import EventBus
 from src.core.position import PositionManager, PositionSide
 from src.core.risk_manager import RiskManager
 from src.strategies.market_maker import MarketMakerStrategy
-from src.ui.web import WebServer
+from src.ui.web_server import WebServer
 
 # 配置日志
 def setup_logging(log_level: str = "INFO"):

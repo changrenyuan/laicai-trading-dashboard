@@ -31,13 +31,13 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
-    """启动 WebServer v2"""
-    from src.ui.web_v2 import WebServerV2
+    """启动 WebServer"""
+    from src.ui.web_server import WebServer
     from src.core.position import PositionManager
     from src.core.risk_manager import RiskManager
 
     logger.info("="*60)
-    logger.info("🚀 启动后端服务 - WebServer v2")
+    logger.info("🚀 启动后端服务 - WebServer")
     logger.info("="*60)
 
     # 创建模拟机器人实例
@@ -59,29 +59,19 @@ async def main():
     }
 
     # 创建 WebServer
-    web_server = WebServerV2(config=config, bot_instance=bot)
+    web_server = WebServer(config=config, bot_instance=bot)
 
     # 从环境变量读取配置
     host = os.getenv("HOST", "0.0.0.0")
     port = int(os.getenv("PORT", "5000"))
 
-    # 订阅 EventBus 事件，用于调试
-    def event_debug_handler(event):
-        logger.info(f"📤 Event Published: type={event.get('type')}, timestamp={event.get('timestamp')}")
-        logger.info(f"   Data: {event}")
-
-    web_server.event_bus.subscribe("price", event_debug_handler)
-    web_server.event_bus.subscribe("order_update", event_debug_handler)
-    web_server.event_bus.subscribe("position", event_debug_handler)
-    web_server.event_bus.subscribe("strategy", event_debug_handler)
-    web_server.event_bus.subscribe("log", event_debug_handler)
-    web_server.event_bus.subscribe("error", event_debug_handler)
-    web_server.event_bus.subscribe("snapshot", event_debug_handler)
+    # WebServer 已经在初始化时订阅了事件总线
+    # 这里不需要再订阅
 
     logger.info("="*60)
-    logger.info("✅ WebServer v2 初始化完成")
+    logger.info("✅ WebServer 初始化完成")
     logger.info(f"📍 API 地址: http://localhost:{port}")
-    logger.info(f"🔌 WebSocket 地址: ws://localhost:{port}/ws")
+    logger.info(f"🔌 WebSocket 地址: ws://localhost:{port}/api/stream")
     logger.info("="*60)
     logger.info("")
 

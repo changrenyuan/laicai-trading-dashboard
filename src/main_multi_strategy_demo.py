@@ -25,7 +25,7 @@ from src.core.position import PositionManager
 from src.core.risk_manager import RiskManager
 from src.core.strategy_manager import StrategyManager
 from src.core.websocket_log_handler import setup_websocket_logging
-from src.ui.web_multi_strategy import WebServer
+from src.ui.web_server import WebServer
 
 
 # 配置日志
