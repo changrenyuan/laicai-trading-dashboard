@@ -76,6 +76,7 @@ class WebServer:
                 "version": "2.0.0",
                 "endpoints": {
                     "websocket": "/ws",
+                    "api_stream": "/api/stream",
                     "logs_websocket": "/ws/logs",
                     "command": "/api/command",
                     "state": "/api/state",
@@ -346,6 +347,7 @@ class WebServer:
             """通用 WebSocket 端点 - 用于事件广播"""
             await websocket.accept()
             self.websocket_clients.append(websocket)
+            logger.info("WebSocket client connected to /ws")
 
             try:
                 while True:
@@ -354,8 +356,27 @@ class WebServer:
                     logger.info(f"Received WebSocket message: {data}")
 
             except WebSocketDisconnect:
-                self.websocket_clients.remove(websocket)
-                logger.info("WebSocket client disconnected")
+                if websocket in self.websocket_clients:
+                    self.websocket_clients.remove(websocket)
+                logger.info("WebSocket client disconnected from /ws")
+
+        @self.app.websocket("/api/stream")
+        async def api_stream_endpoint(websocket: WebSocket):
+            """API Stream WebSocket 端点 - 用于事件广播（兼容客户端）"""
+            await websocket.accept()
+            self.websocket_clients.append(websocket)
+            logger.info("WebSocket client connected to /api/stream")
+
+            try:
+                while True:
+                    data = await websocket.receive_text()
+                    # 可以处理客户端发送的消息
+                    logger.info(f"Received WebSocket message: {data}")
+
+            except WebSocketDisconnect:
+                if websocket in self.websocket_clients:
+                    self.websocket_clients.remove(websocket)
+                logger.info("WebSocket client disconnected from /api/stream")
 
         @self.app.websocket("/ws/logs")
         async def logs_websocket_endpoint(websocket: WebSocket):
