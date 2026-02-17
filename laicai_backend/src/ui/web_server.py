@@ -362,9 +362,20 @@ class WebServer:
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
+                # 先发送连接成功事件
+                try:
+                    await self.event_bus.publish_connected()
+                except Exception as e:
+                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
+
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
+                        # 检查连接是否还活着
+                        if websocket.client_state.name != 'CONNECTED':
+                            logger.debug(f"WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
+                            return
+
                         message = json.dumps(event, ensure_ascii=False)
                         await websocket.send_text(message)
                         logger.debug(f"Event sent to client: {event.get('type')}")
@@ -392,11 +403,19 @@ class WebServer:
                     data = await websocket.receive_text()
                     logger.debug(f"Received message from client: {data}")
 
-                    # 处理客户端发送的命令
+                    # 处理客户端发送的消息
                     try:
-                        command = json.loads(data)
-                        logger.debug(f"Parsed command: {command}")
+                        message = json.loads(data)
+                        logger.debug(f"Parsed message: {message}")
 
+                        # 处理心跳消息
+                        if message.get("type") == "ping":
+                            logger.debug("Received ping, sending pong")
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                            continue
+
+                        # 处理命令
+                        command = message
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))
@@ -423,9 +442,20 @@ class WebServer:
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
+                # 先发送连接成功事件
+                try:
+                    await self.event_bus.publish_connected()
+                except Exception as e:
+                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
+
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
+                        # 检查连接是否还活着
+                        if websocket.client_state.name != 'CONNECTED':
+                            logger.debug(f"WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
+                            return
+
                         message = json.dumps(event, ensure_ascii=False)
                         await websocket.send_text(message)
                         logger.debug(f"Event sent to client: {event.get('type')}")
@@ -453,11 +483,19 @@ class WebServer:
                     data = await websocket.receive_text()
                     logger.debug(f"Received message from client: {data}")
 
-                    # 处理客户端发送的命令
+                    # 处理客户端发送的消息
                     try:
-                        command = json.loads(data)
-                        logger.debug(f"Parsed command: {command}")
+                        message = json.loads(data)
+                        logger.debug(f"Parsed message: {message}")
 
+                        # 处理心跳消息
+                        if message.get("type") == "ping":
+                            logger.debug("Received ping, sending pong")
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                            continue
+
+                        # 处理命令
+                        command = message
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))

@@ -12,26 +12,28 @@
 - 🔄 **WebSocket 实时通信** - 实时推送交易事件和市场数据
 - 🎯 **事件驱动架构** - 模块化设计，易于扩展新策略
 
-## 🏗️ 架构
+## 🏗️ 项目结构
 
 ```
 hummingbot-lite/
-├── src/
-│   ├── core/                   # 核心框架
-│   │   ├── event_bus.py       # 事件总线（发布-订阅模式）
-│   │   ├── strategy.py        # 策略基类
-│   │   ├── position.py        # 仓位管理
-│   │   └── risk_manager.py    # 风控模块
-│   ├── connectors/            # 交易所连接器
-│   │   └── okx.py             # OKX 实现
-│   ├── strategies/            # 交易策略
-│   │   └── market_maker.py    # 做市策略
-│   ├── ui/                    # Web 界面
-│   │   └── web.py             # FastAPI + WebSocket
-│   └── main.py                # 主程序入口
-├── config.yaml                # 配置文件
-├── requirements.txt           # Python 依赖
-└── README.md                  # 本文件
+├── laicai_backend/            # 后端服务
+│   ├── src/
+│   │   ├── core/             # 核心框架
+│   │   │   ├── event_bus.py  # 事件总线
+│   │   │   ├── strategy.py   # 策略基类
+│   │   │   ├── position.py   # 仓位管理
+│   │   │   └── risk_manager.py # 风控模块
+│   │   ├── connectors/       # 交易所连接器
+│   │   │   └── okx.py        # OKX 实现
+│   │   ├── strategies/       # 交易策略
+│   │   │   └── market_maker.py # 做市策略
+│   │   └── ui/               # Web 服务
+│   │       └── web_server.py # FastAPI + WebSocket
+│   ├── configs/              # 配置文件
+│   ├── requirements.txt      # Python 依赖
+│   └── start_backend_debug.py # 后端启动脚本
+├── assets/                   # Hummingbot 参考代码
+└── README.md                 # 本文件
 ```
 
 ## 📋 系统要求
@@ -50,6 +52,7 @@ cd /workspace/projects
 ### 2. 安装依赖
 
 ```bash
+cd laicai_backend
 pip install -r requirements.txt
 ```
 
@@ -140,12 +143,13 @@ risk_management:
 ### 7. 启动程序
 
 ```bash
-python src/main.py
+cd laicai_backend
+python start_backend_debug.py
 ```
 
 ### 8. 访问 Web 控制面板
 
-打开浏览器访问：http://localhost:5000
+打开浏览器访问：http://localhost:8000
 
 控制面板功能：
 - 📊 实时查看策略状态
@@ -162,6 +166,7 @@ python src/main.py
 如果只是想预览界面和体验功能，可以使用演示模式：
 
 ```bash
+cd laicai_backend
 python src/main_demo.py
 ```
 
@@ -281,7 +286,7 @@ triggered, order = risk_manager.check_stop_loss(symbol, side, current_price)
 
 ### WebSocket
 
-连接：`ws://localhost:5000/ws`
+连接：`ws://localhost:8000/api/stream`
 
 消息类型：
 - `status_update` - 状态更新
