@@ -346,12 +346,12 @@ class WSCommandHandler:
                     await connector.__aenter__()  # 初始化 HTTP 客户端
                     logger.info("OKX connector initialized successfully")
 
-                    # 测试获取服务器时间
+                    # 测试连接
                     try:
-                        server_time = await connector.get_server_time()
-                        logger.info(f"OKX server time: {server_time}")
+                        is_healthy = await connector.test_connection()
+                        logger.info(f"OKX connection test: {'success' if is_healthy else 'failed'}")
                     except Exception as e:
-                        logger.warning(f"Failed to get server time: {e}")
+                        logger.warning(f"Failed to test connection: {e}")
 
                 except Exception as e:
                     logger.error(f"Failed to initialize OKX connector: {e}")
@@ -376,8 +376,7 @@ class WSCommandHandler:
 
                 # 发布连接事件
                 try:
-                    await self.event_bus.publish_event({
-                        "type": "connection",
+                    await self.event_bus.publish("connection", {
                         "event": "created",
                         "connection_id": connection_id,
                         "exchange": exchange,
@@ -439,8 +438,7 @@ class WSCommandHandler:
 
             # 发布删除事件
             try:
-                await self.event_bus.publish_event({
-                    "type": "connection",
+                await self.event_bus.publish("connection", {
                     "event": "deleted",
                     "connection_id": connection_id,
                     "exchange": connection.get("exchange")
@@ -492,18 +490,17 @@ class WSCommandHandler:
                     "error": "Connector not available"
                 }
 
-            # 测试连接：获取服务器时间
+            # 测试连接：调用 test_connection
             try:
-                server_time = await connector.get_server_time()
-                logger.info(f"Connection test successful: {connection_id}, server time: {server_time}")
+                is_healthy = await connector.test_connection()
+                logger.info(f"Connection test successful: {connection_id}, healthy: {is_healthy}")
 
                 # 发布测试事件
                 try:
-                    await self.event_bus.publish_event({
-                        "type": "connection",
+                    await self.event_bus.publish("connection", {
                         "event": "tested",
                         "connection_id": connection_id,
-                        "status": "healthy"
+                        "status": "healthy" if is_healthy else "failed"
                     })
                 except Exception as e:
                     logger.error(f"Failed to publish test event: {e}")
@@ -511,7 +508,7 @@ class WSCommandHandler:
                 return {
                     "success": True,
                     "message": f"Connection {connection_id} is healthy",
-                    "server_time": server_time
+                    "healthy": is_healthy
                 }
 
             except Exception as e:
