@@ -10,6 +10,7 @@ from typing import Dict, List, Optional
 import json
 import logging
 import sys
+import asyncio
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,31 @@ class WebServer:
             allow_methods=["*"],  # 允许所有方法
             allow_headers=["*"],  # 允许所有请求头
         )
+
+        # ✅ 添加请求日志中间件
+        @self.app.middleware("http")
+        async def log_requests(request, call_next):
+            """记录所有 HTTP 请求"""
+            start_time = datetime.now()
+            logger.info(f"📥 [HTTP] {request.method} {request.url.path} - Headers: {dict(request.headers)}")
+
+            # 打印请求体（如果有）
+            if request.method in ["POST", "PUT", "PATCH"]:
+                try:
+                    body = await request.body()
+                    if body:
+                        logger.debug(f"📦 [HTTP] Request body: {body.decode('utf-8', errors='ignore')[:500]}")
+                except Exception as e:
+                    logger.warning(f"Failed to read request body: {e}")
+
+            # 执行请求
+            response = await call_next(request)
+
+            # 计算处理时间
+            process_time = (datetime.now() - start_time).total_seconds() * 1000
+            logger.info(f"📤 [HTTP] {request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.2f}ms")
+
+            return response
 
         # 添加全局异常处理
         @self.app.exception_handler(Exception)
@@ -362,25 +388,31 @@ class WebServer:
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
-                # 先发送连接成功事件
-                try:
-                    await self.event_bus.publish_connected()
-                except Exception as e:
-                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
-
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
                         # 检查连接是否还活着
                         if websocket.client_state.name != 'CONNECTED':
-                            logger.debug(f"WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
+                            logger.debug(f"⚠️ [WS] WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
                             return
 
+                        # 尝试发送消息
                         message = json.dumps(event, ensure_ascii=False)
                         await websocket.send_text(message)
-                        logger.debug(f"Event sent to client: {event.get('type')}")
+                        logger.debug(f"✅ [WS] Event sent to client: {event.get('type')}")
+
+                    except RuntimeError as e:
+                        # WebSocket 连接已关闭
+                        if 'websocket.close' in str(e) or 'already completed' in str(e):
+                            logger.debug(f"⚠️ [WS] WebSocket connection closed, stopping event forwarding: {e}")
+                            # 从所有订阅中移除此回调
+                            for event_type in event_types:
+                                self.event_bus.unsubscribe(event_type, event_forwarder)
+                        else:
+                            logger.error(f"❌ [WS] WebSocket runtime error: {e}", exc_info=True)
+
                     except Exception as e:
-                        logger.error(f"Failed to send event to client: {e}", exc_info=True)
+                        logger.error(f"❌ [WS] Failed to send event to client: {e}", exc_info=True)
 
                 # 订阅所有事件类型
                 event_types = [
@@ -390,23 +422,100 @@ class WebServer:
                 ]
                 for event_type in event_types:
                     self.event_bus.subscribe(event_type, event_forwarder)
-                    logger.debug(f"Subscribed to event type: {event_type}")
+                    logger.debug(f"📡 [WS] Subscribed to event type: {event_type}")
 
-                # 发送连接成功事件
-                try:
-                    await self.event_bus.publish_connected()
-                except Exception as e:
-                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
+                # 延迟发送连接成功事件，给前端足够的时间准备
+                async def delayed_send_connected():
+                    try:
+                        await asyncio.sleep(0.5)  # 延迟 500ms
+                        await self.event_bus.publish_connected()
+                        logger.debug(f"📤 [WS] Published connected event (delayed)")
+                    except Exception as e:
+                        logger.error(f"❌ [WS] Failed to publish delayed connected event: {e}", exc_info=True)
+
+                # 启动后台任务发送连接事件
+                asyncio.create_task(delayed_send_connected())
+
+                # 启动服务器心跳任务
+                async def server_heartbeat_task():
+                    """服务器心跳任务 - 定期发送 ping 并检测 pong 超时"""
+                    heartbeat_interval = 15.0  # 心跳间隔 15 秒
+                    pong_timeout = 20.0  # pong 超时 20 秒
+                    last_pong_time = asyncio.get_event_loop().time()
+
+                    logger.info(f"💓 [WS] Server heartbeat started (interval: {heartbeat_interval}s, timeout: {pong_timeout}s)")
+
+                    while websocket.client_state.name == 'CONNECTED':
+                        try:
+                            # 等待心跳间隔
+                            await asyncio.sleep(heartbeat_interval)
+
+                            # 检查连接状态
+                            if websocket.client_state.name != 'CONNECTED':
+                                break
+
+                            # 发送 ping
+                            try:
+                                await websocket.send_text(json.dumps({"type": "ping"}))
+                                logger.debug(f"💓 [WS] Server ping sent")
+                            except Exception as e:
+                                logger.error(f"❌ [WS] Failed to send server ping: {e}")
+                                break
+
+                            # 等待 pong 响应
+                            start_time = asyncio.get_event_loop().time()
+                            pong_received = False
+
+                            while (asyncio.get_event_loop().time() - start_time) < pong_timeout:
+                                try:
+                                    message = await asyncio.wait_for(
+                                        websocket.receive_text(),
+                                        timeout=1.0
+                                    )
+                                    data = json.loads(message)
+
+                                    # 检查是否是 pong 响应
+                                    if data.get("type") == "pong":
+                                        pong_received = True
+                                        last_pong_time = asyncio.get_event_loop().time()
+                                        logger.debug(f"💓 [WS] Server pong received")
+                                        break
+
+                                    # 处理其他消息
+                                    # (这里不应该处理，因为主循环已经在处理)
+                                except asyncio.TimeoutError:
+                                    continue
+                                except Exception as e:
+                                    logger.error(f"❌ [WS] Error waiting for pong: {e}")
+                                    break
+
+                            # 检查是否收到 pong
+                            if not pong_received:
+                                logger.error(f"❌ [WS] Server pong timeout - closing connection")
+                                try:
+                                    await websocket.close(code=1000, reason="Heartbeat timeout")
+                                except:
+                                    pass
+                                break
+
+                        except Exception as e:
+                            logger.error(f"❌ [WS] Server heartbeat error: {e}", exc_info=True)
+                            break
+
+                    logger.info(f"💔 [WS] Server heartbeat stopped")
+
+                # 启动后台心跳任务
+                asyncio.create_task(server_heartbeat_task())
 
             try:
                 while True:
                     data = await websocket.receive_text()
-                    logger.debug(f"Received message from client: {data}")
+                    logger.info(f"📥 [WS] Received message from client ({len(data)} chars): {data[:200]}")
 
                     # 处理客户端发送的消息
                     try:
                         message = json.loads(data)
-                        logger.debug(f"Parsed message: {message}")
+                        logger.info(f"📝 [WS] Parsed message: {message}")
 
                         # 处理心跳消息
                         if message.get("type") == "ping":
@@ -416,10 +525,14 @@ class WebServer:
 
                         # 处理命令
                         command = message
+                        logger.info(f"⚡ [WS] Processing command: {command.get('cmd', 'unknown')}")
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))
-                            logger.debug(f"Command response sent: {response.get('success')}")
+                            logger.info(f"📤 [WS] Command response sent - Success: {response.get('success')}, Data: {response.get('data', {})}")
+                        else:
+                            logger.warning(f"⚠️ [WS] No command handler available")
+                            await websocket.send_text(json.dumps({"success": False, "error": "No command handler"}))
                     except json.JSONDecodeError as e:
                         logger.warning(f"Invalid JSON received: {data}, error: {e}")
                     except Exception as e:
@@ -436,31 +549,41 @@ class WebServer:
         @self.app.websocket("/api/stream")
         async def api_stream_endpoint(websocket: WebSocket):
             """API Stream WebSocket 端点 - 用于事件广播（兼容客户端）"""
+            client_host = websocket.client.host if websocket.client else "unknown"
+            client_port = websocket.client.port if websocket.client else "unknown"
+            logger.info(f"🔗 [WS] New WebSocket connection attempt from {client_host}:{client_port}")
+
             await websocket.accept()
             self.websocket_clients.append(websocket)
-            logger.info("WebSocket client connected to /api/stream")
+            logger.info(f"✅ [WS] WebSocket client connected to /api/stream - Total clients: {len(self.websocket_clients)}")
 
             # 如果有事件总线，订阅所有事件并推送给客户端
             if self.event_bus:
-                # 先发送连接成功事件
-                try:
-                    await self.event_bus.publish_connected()
-                except Exception as e:
-                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
-
                 # 订阅事件总线并推送给客户端
                 async def event_forwarder(event):
                     try:
                         # 检查连接是否还活着
                         if websocket.client_state.name != 'CONNECTED':
-                            logger.debug(f"WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
+                            logger.debug(f"⚠️ [WS] WebSocket is not connected (state: {websocket.client_state.name}), skipping event")
                             return
 
+                        # 尝试发送消息
                         message = json.dumps(event, ensure_ascii=False)
                         await websocket.send_text(message)
-                        logger.debug(f"Event sent to client: {event.get('type')}")
+                        logger.debug(f"✅ [WS] Event sent to client: {event.get('type')}")
+
+                    except RuntimeError as e:
+                        # WebSocket 连接已关闭
+                        if 'websocket.close' in str(e) or 'already completed' in str(e):
+                            logger.debug(f"⚠️ [WS] WebSocket connection closed, stopping event forwarding: {e}")
+                            # 从所有订阅中移除此回调
+                            for event_type in event_types:
+                                self.event_bus.unsubscribe(event_type, event_forwarder)
+                        else:
+                            logger.error(f"❌ [WS] WebSocket runtime error: {e}", exc_info=True)
+
                     except Exception as e:
-                        logger.error(f"Failed to send event to client: {e}", exc_info=True)
+                        logger.error(f"❌ [WS] Failed to send event to client: {e}", exc_info=True)
 
                 # 订阅所有事件类型
                 event_types = [
@@ -470,23 +593,100 @@ class WebServer:
                 ]
                 for event_type in event_types:
                     self.event_bus.subscribe(event_type, event_forwarder)
-                    logger.debug(f"Subscribed to event type: {event_type}")
+                    logger.debug(f"📡 [WS] Subscribed to event type: {event_type}")
 
-                # 发送连接成功事件
-                try:
-                    await self.event_bus.publish_connected()
-                except Exception as e:
-                    logger.error(f"Failed to publish connected event: {e}", exc_info=True)
+                # 延迟发送连接成功事件，给前端足够的时间准备
+                async def delayed_send_connected():
+                    try:
+                        await asyncio.sleep(0.5)  # 延迟 500ms
+                        await self.event_bus.publish_connected()
+                        logger.debug(f"📤 [WS] Published connected event (delayed)")
+                    except Exception as e:
+                        logger.error(f"❌ [WS] Failed to publish delayed connected event: {e}", exc_info=True)
+
+                # 启动后台任务发送连接事件
+                asyncio.create_task(delayed_send_connected())
+
+                # 启动服务器心跳任务
+                async def server_heartbeat_task():
+                    """服务器心跳任务 - 定期发送 ping 并检测 pong 超时"""
+                    heartbeat_interval = 15.0  # 心跳间隔 15 秒
+                    pong_timeout = 20.0  # pong 超时 20 秒
+                    last_pong_time = asyncio.get_event_loop().time()
+
+                    logger.info(f"💓 [WS] Server heartbeat started (interval: {heartbeat_interval}s, timeout: {pong_timeout}s)")
+
+                    while websocket.client_state.name == 'CONNECTED':
+                        try:
+                            # 等待心跳间隔
+                            await asyncio.sleep(heartbeat_interval)
+
+                            # 检查连接状态
+                            if websocket.client_state.name != 'CONNECTED':
+                                break
+
+                            # 发送 ping
+                            try:
+                                await websocket.send_text(json.dumps({"type": "ping"}))
+                                logger.debug(f"💓 [WS] Server ping sent")
+                            except Exception as e:
+                                logger.error(f"❌ [WS] Failed to send server ping: {e}")
+                                break
+
+                            # 等待 pong 响应
+                            start_time = asyncio.get_event_loop().time()
+                            pong_received = False
+
+                            while (asyncio.get_event_loop().time() - start_time) < pong_timeout:
+                                try:
+                                    message = await asyncio.wait_for(
+                                        websocket.receive_text(),
+                                        timeout=1.0
+                                    )
+                                    data = json.loads(message)
+
+                                    # 检查是否是 pong 响应
+                                    if data.get("type") == "pong":
+                                        pong_received = True
+                                        last_pong_time = asyncio.get_event_loop().time()
+                                        logger.debug(f"💓 [WS] Server pong received")
+                                        break
+
+                                    # 处理其他消息
+                                    # (这里不应该处理，因为主循环已经在处理)
+                                except asyncio.TimeoutError:
+                                    continue
+                                except Exception as e:
+                                    logger.error(f"❌ [WS] Error waiting for pong: {e}")
+                                    break
+
+                            # 检查是否收到 pong
+                            if not pong_received:
+                                logger.error(f"❌ [WS] Server pong timeout - closing connection")
+                                try:
+                                    await websocket.close(code=1000, reason="Heartbeat timeout")
+                                except:
+                                    pass
+                                break
+
+                        except Exception as e:
+                            logger.error(f"❌ [WS] Server heartbeat error: {e}", exc_info=True)
+                            break
+
+                    logger.info(f"💔 [WS] Server heartbeat stopped")
+
+                # 启动后台心跳任务
+                asyncio.create_task(server_heartbeat_task())
 
             try:
                 while True:
                     data = await websocket.receive_text()
-                    logger.debug(f"Received message from client: {data}")
+                    logger.info(f"📥 [WS] Received message from client ({len(data)} chars): {data[:200]}")
 
                     # 处理客户端发送的消息
                     try:
                         message = json.loads(data)
-                        logger.debug(f"Parsed message: {message}")
+                        logger.info(f"📝 [WS] Parsed message: {message}")
 
                         # 处理心跳消息
                         if message.get("type") == "ping":
@@ -496,10 +696,14 @@ class WebServer:
 
                         # 处理命令
                         command = message
+                        logger.info(f"⚡ [WS] Processing command: {command.get('cmd', 'unknown')}")
                         if self.command_handler:
                             response = await self.command_handler.handle_command(command)
                             await websocket.send_text(json.dumps(response))
-                            logger.debug(f"Command response sent: {response.get('success')}")
+                            logger.info(f"📤 [WS] Command response sent - Success: {response.get('success')}, Data: {response.get('data', {})}")
+                        else:
+                            logger.warning(f"⚠️ [WS] No command handler available")
+                            await websocket.send_text(json.dumps({"success": False, "error": "No command handler"}))
                     except json.JSONDecodeError as e:
                         logger.warning(f"Invalid JSON received: {data}, error: {e}")
                     except Exception as e:
@@ -507,9 +711,9 @@ class WebServer:
 
             except WebSocketDisconnect as e:
                 self.websocket_clients.remove(websocket)
-                logger.info(f"WebSocket client disconnected from /api/stream (code: {e.code}, reason: {e.reason})")
+                logger.info(f"🔌 [WS] WebSocket client disconnected from /api/stream - Code: {e.code}, Reason: {e.reason} - Remaining clients: {len(self.websocket_clients)}")
             except Exception as e:
-                logger.error(f"WebSocket error: {e}", exc_info=True)
+                logger.error(f"❌ [WS] WebSocket error: {e}", exc_info=True)
                 if websocket in self.websocket_clients:
                     self.websocket_clients.remove(websocket)
 

@@ -17,17 +17,26 @@ load_dotenv()
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, str(Path(__file__).parent))
 
+# 创建带时间戳的日志文件名
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+log_filename = f'backend_debug_{timestamp}.log'
+
 # 配置日志
 logging.basicConfig(
     level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - [%(filename)s:%(lineno)d] - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('backend_debug.log', encoding='utf-8')
+        logging.FileHandler(log_filename, encoding='utf-8')
     ]
 )
 
 logger = logging.getLogger(__name__)
+
+logger.info("="*80)
+logger.info(f"🚀 启动后端服务 - WebServer v2")
+logger.info(f"📝 日志文件: {log_filename}")
+logger.info("="*80)
 
 
 async def main():
