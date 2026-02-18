@@ -25,6 +25,11 @@ class WSCommandHandler:
         self.event_bus = event_bus
         self.start_time = datetime.utcnow()
 
+        # 连接管理：存储已创建的交易所连接
+        self.connections: Dict[str, Dict] = {}
+
+        logger.info("WebSocket Command Handler initialized")
+
     async def handle_command(self, command: Dict) -> Dict:
         """
         处理命令
@@ -79,6 +84,8 @@ class WSCommandHandler:
                 return await self._delete_connection(command)
             elif cmd == "test_connection":
                 return await self._test_connection(command)
+            elif cmd == "get_connections":
+                return await self._get_connections(command)
 
             # 系统命令
             elif cmd == "start_engine":
@@ -309,16 +316,97 @@ class WSCommandHandler:
         api_key = command.get("api_key")
         api_secret = command.get("api_secret")
         testnet = command.get("testnet", False)
+        passphrase = command.get("passphrase", "")
+
+        logger.info(f"Creating connection to {exchange} (testnet={testnet})")
 
         if not all([exchange, api_key, api_secret]):
             return {"success": False, "error": "Missing required parameters (exchange, api_key, api_secret)"}
 
-        # TODO: 实现实际的连接创建逻辑
-        return {
-            "success": True,
-            "message": f"Connection to {exchange} created",
-            "connection_id": f"conn-{int(datetime.utcnow().timestamp())}"
-        }
+        try:
+            # 根据交易所类型创建连接器
+            if exchange.lower() == "okx":
+                # 导入 OKX 连接器
+                from src.connectors.okx_lite.connector import OKXConnector
+
+                # 配置
+                config = {
+                    'api_key': api_key,
+                    'secret_key': api_secret,
+                    'passphrase': passphrase,
+                    'sandbox': testnet,
+                    'proxy': None  # 可以从命令参数获取
+                }
+
+                # 创建连接器实例
+                connector = OKXConnector(config)
+
+                # 测试连接
+                try:
+                    await connector.__aenter__()  # 初始化 HTTP 客户端
+                    logger.info("OKX connector initialized successfully")
+
+                    # 测试获取服务器时间
+                    try:
+                        server_time = await connector.get_server_time()
+                        logger.info(f"OKX server time: {server_time}")
+                    except Exception as e:
+                        logger.warning(f"Failed to get server time: {e}")
+
+                except Exception as e:
+                    logger.error(f"Failed to initialize OKX connector: {e}")
+                    return {
+                        "success": False,
+                        "error": f"Failed to initialize connector: {str(e)}"
+                    }
+
+                # 生成连接 ID
+                connection_id = f"okx-{int(datetime.utcnow().timestamp())}"
+
+                # 存储连接
+                self.connections[connection_id] = {
+                    "exchange": exchange,
+                    "connector": connector,
+                    "config": {
+                        "api_key": api_key[:8] + "...",  # 只显示前 8 位
+                        "testnet": testnet
+                    },
+                    "created_at": datetime.utcnow().isoformat()
+                }
+
+                # 发布连接事件
+                try:
+                    await self.event_bus.publish_event({
+                        "type": "connection",
+                        "event": "created",
+                        "connection_id": connection_id,
+                        "exchange": exchange,
+                        "status": "connected"
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to publish connection event: {e}")
+
+                logger.info(f"Connection created: {connection_id}")
+
+                return {
+                    "success": True,
+                    "message": f"Connection to {exchange} created successfully",
+                    "connection_id": connection_id,
+                    "exchange": exchange
+                }
+
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unsupported exchange: {exchange}"
+                }
+
+        except Exception as e:
+            logger.error(f"Error creating connection: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     async def _delete_connection(self, command: Dict) -> Dict:
         """删除连接"""
@@ -327,11 +415,55 @@ class WSCommandHandler:
         if not connection_id:
             return {"success": False, "error": "Missing 'id' parameter"}
 
-        # TODO: 实现实际的连接删除逻辑
-        return {
-            "success": True,
-            "message": f"Connection {connection_id} deleted"
-        }
+        logger.info(f"Deleting connection: {connection_id}")
+
+        # 检查连接是否存在
+        if connection_id not in self.connections:
+            return {
+                "success": False,
+                "error": f"Connection {connection_id} not found"
+            }
+
+        try:
+            # 获取连接信息
+            connection = self.connections[connection_id]
+            connector = connection.get("connector")
+
+            # 关闭连接器
+            if connector and hasattr(connector, '__aexit__'):
+                try:
+                    await connector.__aexit__(None, None, None)
+                    logger.info(f"Connector closed: {connection_id}")
+                except Exception as e:
+                    logger.error(f"Failed to close connector: {e}")
+
+            # 发布删除事件
+            try:
+                await self.event_bus.publish_event({
+                    "type": "connection",
+                    "event": "deleted",
+                    "connection_id": connection_id,
+                    "exchange": connection.get("exchange")
+                })
+            except Exception as e:
+                logger.error(f"Failed to publish deletion event: {e}")
+
+            # 从字典中删除
+            del self.connections[connection_id]
+
+            logger.info(f"Connection deleted: {connection_id}")
+
+            return {
+                "success": True,
+                "message": f"Connection {connection_id} deleted"
+            }
+
+        except Exception as e:
+            logger.error(f"Error deleting connection: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     async def _test_connection(self, command: Dict) -> Dict:
         """测试连接"""
@@ -340,11 +472,89 @@ class WSCommandHandler:
         if not connection_id:
             return {"success": False, "error": "Missing 'id' parameter"}
 
-        # TODO: 实现实际的连接测试逻辑
-        return {
-            "success": True,
-            "message": f"Connection {connection_id} is healthy"
-        }
+        logger.info(f"Testing connection: {connection_id}")
+
+        # 检查连接是否存在
+        if connection_id not in self.connections:
+            return {
+                "success": False,
+                "error": f"Connection {connection_id} not found"
+            }
+
+        try:
+            # 获取连接
+            connection = self.connections[connection_id]
+            connector = connection.get("connector")
+
+            if not connector:
+                return {
+                    "success": False,
+                    "error": "Connector not available"
+                }
+
+            # 测试连接：获取服务器时间
+            try:
+                server_time = await connector.get_server_time()
+                logger.info(f"Connection test successful: {connection_id}, server time: {server_time}")
+
+                # 发布测试事件
+                try:
+                    await self.event_bus.publish_event({
+                        "type": "connection",
+                        "event": "tested",
+                        "connection_id": connection_id,
+                        "status": "healthy"
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to publish test event: {e}")
+
+                return {
+                    "success": True,
+                    "message": f"Connection {connection_id} is healthy",
+                    "server_time": server_time
+                }
+
+            except Exception as e:
+                logger.error(f"Connection test failed: {e}")
+                return {
+                    "success": False,
+                    "error": f"Connection test failed: {str(e)}"
+                }
+
+        except Exception as e:
+            logger.error(f"Error testing connection: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    async def _get_connections(self, command: Dict) -> Dict:
+        """获取所有连接列表"""
+        logger.info(f"Getting connections: {len(self.connections)} connections")
+
+        try:
+            # 构建连接列表
+            connections_list = []
+            for connection_id, connection in self.connections.items():
+                connections_list.append({
+                    "id": connection_id,
+                    "exchange": connection.get("exchange"),
+                    "config": connection.get("config"),
+                    "created_at": connection.get("created_at")
+                })
+
+            return {
+                "success": True,
+                "connections": connections_list,
+                "count": len(connections_list)
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting connections: {e}", exc_info=True)
+            return {
+                "success": False,
+                "error": str(e)
+            }
 
     # ============ 系统命令 ============
 
